@@ -26,8 +26,14 @@ def verify_flat_rent(flat_rent, user_flat_rent):
     if flat_rent == "":
         return True
 
+    try:
+        rent_value = float(flat_rent)
+        user_flat_rent_value = float(user_flat_rent)
+    except (TypeError, ValueError):
+        return True
+
     # Check rent numbers
-    if flat_rent <= float(user_flat_rent):
+    if rent_value <= user_flat_rent_value:
         return True
     else:
         return False
@@ -39,11 +45,17 @@ def verify_flat_size(flat_size, user_flat_size):
     # If the size is "" it means the listing has some improper values and
     # we couldn't fetch the correct numbers from the texts
     # so we apply regardless
-    if flat_size == "":
+    if flat_size in ("", None):
+        return True
+
+    try:
+        flat_size_value = float(flat_size)
+        user_flat_size_value = float(user_flat_size)
+    except (TypeError, ValueError):
         return True
 
     # Check size numbers
-    if flat_size >= float(user_flat_size):
+    if flat_size_value >= user_flat_size_value:
         return True
     else:
         return False
@@ -55,11 +67,17 @@ def verify_flat_rooms(flat_rooms, user_flat_rooms):
     # If the size is "" it means the listing has some improper values and
     # we couldn't fetch the correct numbers from the texts
     # so we apply regardless
-    if flat_rooms == "":
+    if flat_rooms in ("", None):
+        return True
+
+    try:
+        flat_rooms_value = float(flat_rooms)
+        user_flat_rooms_value = float(user_flat_rooms)
+    except (TypeError, ValueError):
         return True
 
     # Check size numbers
-    if flat_rooms >= float(user_flat_rooms):
+    if flat_rooms_value >= user_flat_rooms_value:
         return True
     else:
         return False
@@ -169,10 +187,11 @@ def get_zimmer_count(text: str) -> int:
         2
     """
     # Extract the number using regular expressions
-    count = re.findall(r"\d+", text)
+    if not text:
+        return None
 
-    # If you expect only one number in the string, you can directly access it
-    if count:
-        count = int(count[0])
+    matches = re.findall(r"\d+", str(text))
+    if matches:
+        return int(matches[0])
 
-    return count
+    return None

@@ -32,10 +32,10 @@ WORKDIR /home
 COPY configs/ /home/configs
 COPY logging/ /home/logging
 COPY offline_viewings/ /home/offline_viewings
-COPY wbmbot_v2/ /home/wbmbot_v2
+COPY wbmbot_v3/ /home/wbmbot_v3
 
 # Install project dependencies
-RUN pip3 install --no-cache-dir -r /home/wbmbot_v2/requirements.txt
+RUN pip3 install --no-cache-dir -r /home/wbmbot_v3/requirements.txt
 
 # Command to run the bot
-CMD ["python3", "/home/wbmbot_v2/main.py", "-H"]
+CMD ["python3", "/home/wbmbot_v3/main.py", "-H"]

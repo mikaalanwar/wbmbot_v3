@@ -394,11 +394,20 @@ def process_flats(
                 f"{constants.now}/page_{current_page}",
             )
 
+        restart_processing = False
         for i, flat_elem in enumerate(all_flats):
             time.sleep(2)  # Sleep to mimic human behavior and avoid detection
 
             # Refresh Flat Elements to avoid staleness
             all_flats = find_flats(web_driver)
+            if i >= len(all_flats):
+                LOG.warning(
+                    color_me.yellow(
+                        "Flat list changed while iterating; restarting processing loop 🔄"
+                    )
+                )
+                restart_processing = True
+                break
             flat_elem = all_flats[i]
             # Create flat object
             flat_obj = flat.Flat(flat_elem.text, test)
@@ -475,6 +484,14 @@ def process_flats(
                         time.sleep(1.5)
                         # Refresh Flat Elements for each email iteration to avoid staleness
                         all_flats = find_flats(web_driver)
+                        if i >= len(all_flats):
+                            LOG.warning(
+                                color_me.yellow(
+                                    "Flat list changed during apply; restarting processing loop 🔄"
+                                )
+                            )
+                            restart_processing = True
+                            break
                         flat_elem = all_flats[i]
                     else:
                         LOG.warning(
@@ -490,11 +507,17 @@ def process_flats(
                     )
                     continue
 
+            if restart_processing:
+                break
+
             # Try to switch to next page if exists, in the last iteration
             if i == len(all_flats) - 1:
                 previous_page = current_page
                 current_page = next_page(web_driver, current_page)
                 page_changed = current_page != previous_page
+
+        if restart_processing:
+            continue
 
         if not page_changed:
             time.sleep(int(refresh_internal) * 60)

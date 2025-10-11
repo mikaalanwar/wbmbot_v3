@@ -1,17 +1,17 @@
-![Docker Pulls](https://img.shields.io/docker/pulls/vel7an/wbmbot_v2?style=flat-square&logo=docker&label=DOCKER%20PULLS) ![Docker Image Size](https://img.shields.io/docker/image-size/vel7an/wbmbot_v2?style=flat-square&logo=docker&label=IMAGE%20SIZE)
+![Docker Pulls](https://img.shields.io/docker/pulls/vel7an/wbmbot_v3?style=flat-square&logo=docker&label=DOCKER%20PULLS) ![Docker Image Size](https://img.shields.io/docker/image-size/vel7an/wbmbot_v3?style=flat-square&logo=docker&label=IMAGE%20SIZE)
 
-![GitHub commit activity](https://img.shields.io/github/commit-activity/m/vel-san/wbmbot_v2?style=flat-square&logo=github&label=COMMITS) ![GitHub repo size](https://img.shields.io/github/repo-size/vel-san/wbmbot_v2?style=flat-square&logo=github&label=REPO%20SIZE) ![GitHub forks](https://img.shields.io/github/forks/vel-san/wbmbot_v2?style=flat-square&logo=github&label=FORKS) ![GitHub Repo stars](https://img.shields.io/github/stars/vel-san/wbmbot_v2?style=flat-square&logo=github&label=STARS) ![GitHub commits since latest release](https://img.shields.io/github/commits-since/vel-san/wbmbot_v2/latest?sort=date&style=flat-square&logo=github&label=COMMITS%20SINCE%20LAST%20RELEASE)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/vel-san/wbmbot_v3?style=flat-square&logo=github&label=COMMITS) ![GitHub repo size](https://img.shields.io/github/repo-size/vel-san/wbmbot_v3?style=flat-square&logo=github&label=REPO%20SIZE) ![GitHub forks](https://img.shields.io/github/forks/vel-san/wbmbot_v3?style=flat-square&logo=github&label=FORKS) ![GitHub Repo stars](https://img.shields.io/github/stars/vel-san/wbmbot_v3?style=flat-square&logo=github&label=STARS) ![GitHub commits since latest release](https://img.shields.io/github/commits-since/vel-san/wbmbot_v3/latest?sort=date&style=flat-square&logo=github&label=COMMITS%20SINCE%20LAST%20RELEASE)
 
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/vel-san/wbmbot_v2/docker-build-push.yml?style=flat-square&logo=github&label=BUILD%20STATUS)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/vel-san/wbmbot_v2/check-leaks.yml?style=flat-square&logo=github&label=SECRETS%20LEAKS) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/vel-san/wbmbot_v2/github-code-scanning%2Fcodeql?style=flat-square&logo=github&label=CODE%20QUALITY)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/vel-san/wbmbot_v3/docker-build-push.yml?style=flat-square&logo=github&label=BUILD%20STATUS)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/vel-san/wbmbot_v3/check-leaks.yml?style=flat-square&logo=github&label=SECRETS%20LEAKS) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/vel-san/wbmbot_v3/github-code-scanning%2Fcodeql?style=flat-square&logo=github&label=CODE%20QUALITY)
 
 ![Code Format](https://img.shields.io/badge/CODE%20FORMAT-BLACK-black?style=flat-square&logo=python)
 
-![GitHub Release](https://img.shields.io/github/v/release/vel-san/wbmbot_v2?sort=date&display_name=tag&style=flat-square&logo=semver&label=BOT%20VERSION&color=teal)
+![GitHub Release](https://img.shields.io/github/v/release/vel-san/wbmbot_v3?sort=date&display_name=tag&style=flat-square&logo=semver&label=BOT%20VERSION&color=teal)
 
 ![Alt](https://repobeats.axiom.co/api/embed/ab658dc363a9401ed4e7171a5442d8e1c1fe585b.svg "Repobeats analytics image")
 
-- [WBMBOT\_v2](#wbmbot_v2)
+- [WBMBOT\_v3](#wbmbot_v3)
   - [IMPORTANT DISCLAIMER](#important-disclaimer)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -32,11 +32,11 @@
   - [TODO](#todo)
 
 
-# WBMBOT_v2
+# WBMBOT_v3
 
 > An improved work-in-progress (WIP) and fully refactored version of the original [WBMBOT by David Fischer](https://github.com/fischer-hub/wbmbot).
 
-WBMBOT_v2 is a Selenium-based Python bot designed to automate the application process for new flats listed by WBM (Wohnungsbaugesellschaft Berlin-Mitte) GmbH. It prioritizes speed and efficiency to ensure your application is among the first to be considered in the random selection process for apartment viewings.
+WBMBOT_v3 is a Selenium-based Python bot designed to automate the application process for new flats listed by WBM (Wohnungsbaugesellschaft Berlin-Mitte) GmbH. It prioritizes speed and efficiency to ensure your application is among the first to be considered in the random selection process for apartment viewings.
 
 ## IMPORTANT DISCLAIMER
 
@@ -60,7 +60,7 @@ The more you share this bot, the "less" your chances of finding an apartment wil
 To set up your environment and install the required dependencies, run the following command:
 
 ```bash
-pip install -r wbmbot_v2/requirements.txt
+pip install -r wbmbot_v3/requirements.txt
 ```
 
 ## Quick Start
@@ -68,7 +68,7 @@ pip install -r wbmbot_v2/requirements.txt
 To launch the bot, navigate to the project directory and execute:
 
 ```bash
-python3 wbmbot_v2/main.py
+python3 wbmbot_v3/main.py
 ```
 
 On the first run, the bot will guide you through a setup process to gather necessary information for applications on wbm.de. This data will be stored in a local `configs/wbm_config.json` file in a human-readable format.
@@ -153,13 +153,13 @@ options:
 ### Build
 
 ```bash
-docker build -f ci/docker/Dockerfile -t wbmbot_v2 .
+docker build -f ci/docker/Dockerfile -t wbmbot_v3 .
 ```
 
 ### Pull
 
 ```bash
-docker pull vel7an/wbmbot_v2:latest
+docker pull vel7an/wbmbot_v3:latest
 ```
 
 ### Run
@@ -175,7 +175,7 @@ docker run -it \
     -v /PATH_HERE/offline_viewings:/home/offline_viewings \
     -v /PATH_HERE/logging:/home/logging \
     -v /PATH_HERE/configs:/home/configs \
-    vel7an/wbmbot_v2:latest
+    vel7an/wbmbot_v3:latest
 ```
 
 #### With e-mail notifications
@@ -186,7 +186,7 @@ docker run -it \
     -v /PATH_HERE/offline_viewings:/home/offline_viewings \
     -v /PATH_HERE/logging:/home/logging \
     -v /PATH_HERE/configs:/home/configs \
-    vel7an/wbmbot_v2:latest
+    vel7an/wbmbot_v3:latest
 ```
 
 ## Filtering Strategy
@@ -215,7 +215,7 @@ During setup, you can provide multiple email addresses. The bot will apply to ea
 
 As of now, there are no timeouts, bot checks, or captchas on the website (which we hope remains the case). However, given the limited number of flats available, frequent checks are not deemed necessary compared to platforms like immoscout24.
 
-*Embark on your apartment hunt with WBMBOT_v2. Good luck!*
+*Embark on your apartment hunt with WBMBOT_v3. Good luck!*
 
 ## TODO
 
