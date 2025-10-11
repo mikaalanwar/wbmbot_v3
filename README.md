@@ -38,6 +38,12 @@
 
 WBMBOT_v3 is a Selenium-based Python bot designed to automate the application process for new flats listed by WBM (Wohnungsbaugesellschaft Berlin-Mitte) GmbH. It prioritizes speed and efficiency to ensure your application is among the first to be considered in the random selection process for apartment viewings.
 
+**Highlights**
+- Applies only to flats that match your include filters (rent, size, rooms) while skipping senior housing listings automatically.
+- Self-recovers from crashes and keeps running once connectivity returns.
+- Keeps a JSON audit log to avoid duplicate submissions and emails you confirmations with the PDF expose attached.
+- Saves Angebots pages and expose PDFs locally so you can review every run.
+
 ## IMPORTANT DISCLAIMER
 
 The more you share this bot, the "less" your chances of finding an apartment will be. You do the math.
@@ -60,6 +66,7 @@ The more you share this bot, the "less" your chances of finding an apartment wil
 To set up your environment and install the required dependencies, run the following command:
 
 ```bash
+# or use the Makefile shortcut: `make dev`
 pip install -r wbmbot_v3/requirements.txt
 ```
 
@@ -69,6 +76,12 @@ To launch the bot, navigate to the project directory and execute:
 
 ```bash
 python3 wbmbot_v3/main.py
+```
+
+Or with the Makefile helper:
+
+```bash
+make run ARGS="--headless"
 ```
 
 On the first run, the bot will guide you through a setup process to gather necessary information for applications on wbm.de. This data will be stored in a local `configs/wbm_config.json` file in a human-readable format.
@@ -193,15 +206,13 @@ docker run -it \
 
 The exclude list is designed to exclude listings based on specified keywords. Simply add your exclusion keywords to the list.
 
-Alternatively you can also use the 3 variables in the config:
+To fine-tune which offers receive an application, configure these fields:
 
-> "flat_rent_below": "600"
->
-> "flat_size_above": "55"
->
-> "flat_rooms_above": "1"
+- `flat_rent_below`: Maximum warm rent in EUR the flat can have.
+- `flat_size_above`: Minimum square meter size the flat must meet.
+- `flat_rooms_above`: Minimum room count the listing must advertise.
 
-Where the bot will "include" your options only. If the rent/size/rooms is *equal* **OR** *below/above* then it will consider the flat to apply.
+Listings that do not meet these limits are skipped with a reasoned log entry. WBMBOT_v3 also ignores senior housing (`seniorenwohnungen`) and any flat whose text matches your exclude keywords.
 
 ## Logging
 
@@ -213,7 +224,7 @@ Successful applications are recorded in `logging/successful_applications.json`.
 
 During setup, you can provide multiple email addresses. The bot will apply to each flat once per email address. By default, the bot refreshes wbm.de every `3 minutes` to check for new listings.
 
-As of now, there are no timeouts, bot checks, or captchas on the website (which we hope remains the case). However, given the limited number of flats available, frequent checks are not deemed necessary compared to platforms like immoscout24.
+The bot continuously checks connectivity and gracefully restarts after unexpected crashes. As of now, there are no timeouts, bot checks, or captchas on the website (which we hope remains the case).
 
 *Embark on your apartment hunt with WBMBOT_v3. Good luck!*
 
