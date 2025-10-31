@@ -39,6 +39,22 @@ def save_viewing_offline(url: str, save_path: str, name: str):
     )
 
 
+def save_rendered_page(html_source: str, file_path: str) -> None:
+    """
+    Persist a rendered HTML page to the provided file path.
+    """
+
+    if not html_source:
+        return
+
+    directory = os.path.dirname(file_path)
+    if directory:
+        io_operations.create_directory_if_not_exists(directory)
+
+    with open(file_path, "w", encoding="utf-8") as html_file:
+        html_file.write(html_source)
+
+
 def download_pdf_file(url: str, local_dir: str) -> None:
     """
     Download a PDF file from the given URL to the local directory.

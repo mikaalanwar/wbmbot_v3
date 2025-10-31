@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 from handlers import flat
@@ -18,6 +19,50 @@ from utility import io_operations, misc_operations
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
 color_me = wbm_logger.ColoredLogger(__appname__)
 LOG = color_me.create_logger()
+
+
+def _format_delay(seconds: int) -> str:
+    """Return a human-readable string for the given delay seconds."""
+
+    if seconds < 60:
+        return f"{seconds}s"
+
+    minutes, secs = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m {secs}s" if secs else f"{minutes}m"
+
+    hours, minutes = divmod(minutes, 60)
+    parts = [f"{hours}h"]
+    if minutes:
+        parts.append(f"{minutes}m")
+    if secs:
+        parts.append(f"{secs}s")
+    return " ".join(parts)
+
+
+def wait_before_next_application(delay_seconds: int) -> None:
+    """
+    Wait before proceeding to the next application while showing a CLI countdown.
+    """
+
+    if delay_seconds <= 0:
+        return
+
+    LOG.info(
+        color_me.cyan(
+            f"Waiting {_format_delay(delay_seconds)} before the next application ⏱️"
+        )
+    )
+
+    for remaining in range(delay_seconds, 0, -1):
+        sys.stdout.write(
+            f"\rNext application in {_format_delay(remaining)} ...".ljust(60)
+        )
+        sys.stdout.flush()
+        time.sleep(1)
+
+    sys.stdout.write("\rNext application starting now!             \n")
+    sys.stdout.flush()
 
 
 def next_page(web_driver, current_page: int):
@@ -308,6 +353,39 @@ def find_flats(web_driver):
     return web_driver.find_elements(By.CSS_SELECTOR, ".row.openimmo-search-list-item")
 
 
+def sort_flats_by_rent(flat_elements, test: bool):
+    """
+    Return metadata about flats sorted by lowest rent first.
+    """
+
+    sorted_entries = []
+    for index, element in enumerate(flat_elements):
+        try:
+            flat_source = element.get_attribute("outerHTML")
+        except Exception:
+            flat_source = element.text
+        flat_obj = flat.Flat(flat_source, test)
+        rent_value = misc_operations.convert_rent(flat_obj.total_rent)
+        rent_key = rent_value if isinstance(rent_value, (int, float)) else float("inf")
+        sorted_entries.append(
+            {
+                "index": index,
+                "rent_key": rent_key,
+                "display_rent": flat_obj.total_rent or "unknown",
+                "title": flat_obj.title or f"Flat #{index + 1}",
+                "flat": flat_obj,
+            }
+        )
+
+    sorted_entries.sort(
+        key=lambda entry: (
+            entry["rent_key"],
+            entry["title"].lower() if entry["title"] else "",
+        )
+    )
+    return sorted_entries
+
+
 def apply_to_flat(
     web_driver,
     flat_element,
@@ -356,6 +434,7 @@ def process_flats(
     page_changed: bool,
     refresh_internal: int,
     test: bool,
+    application_delay_seconds: int,
 ):
     """Process each flat by checking criteria and applying if applicable."""
 
@@ -388,19 +467,39 @@ def process_flats(
 
         # Save locally
         if not test:
-            hpd.save_viewing_offline(
-                start_url,
+            snapshot_path = os.path.join(
                 constants.offline_angebote_path,
-                f"{constants.now}/page_{current_page}",
+                constants.now,
+                f"page_{current_page}.html",
+            )
+            hpd.save_rendered_page(web_driver.page_source, snapshot_path)
+            LOG.info(
+                color_me.cyan(
+                    f"Saved HTML snapshot for page {current_page} at {snapshot_path} 💾"
+                )
             )
 
         restart_processing = False
-        for i, flat_elem in enumerate(all_flats):
+        sorted_entries = sort_flats_by_rent(all_flats, test)
+        if sorted_entries:
+            preview = ", ".join(
+                f"{entry['title']} ({entry['display_rent']})"
+                for entry in sorted_entries[:3]
+            )
+            LOG.info(
+                color_me.cyan(
+                    "Processing flats in ascending rent order 🧮"
+                    + (f" | Preview: {preview}" if preview else "")
+                )
+            )
+
+        for position, entry in enumerate(sorted_entries):
             time.sleep(2)  # Sleep to mimic human behavior and avoid detection
 
             # Refresh Flat Elements to avoid staleness
             all_flats = find_flats(web_driver)
-            if i >= len(all_flats):
+            flat_index = entry["index"]
+            if flat_index >= len(all_flats):
                 LOG.warning(
                     color_me.yellow(
                         "Flat list changed while iterating; restarting processing loop 🔄"
@@ -408,9 +507,16 @@ def process_flats(
                 )
                 restart_processing = True
                 break
-            flat_elem = all_flats[i]
+            flat_elem = all_flats[flat_index]
             # Create flat object
-            flat_obj = flat.Flat(flat_elem.text, test)
+            flat_obj = entry.get("flat")
+            if not flat_obj:
+                try:
+                    flat_source = flat_elem.get_attribute("outerHTML")
+                except Exception:
+                    flat_source = flat_elem.text
+                flat_obj = flat.Flat(flat_source, test)
+                entry["flat"] = flat_obj
 
             if test:
                 LOG.info(color_me.magenta(f"Flat Element: {flat_elem.text}"))
@@ -427,6 +533,13 @@ def process_flats(
                         LOG.warning(
                             color_me.yellow(
                                 f"Ignoring flat '{flat_obj.title}' because it contains exclude keyword(s) --> {misc_operations.contains_filter_keywords(flat_elem, user_profile.exclude)[1]} 🙈"
+                            )
+                        )
+                        continue
+                    if flat_obj.wbs and not user_profile.wbs:
+                        LOG.warning(
+                            color_me.yellow(
+                                f"Ignoring flat '{flat_obj.title}' because it requires WBS and your profile has no WBS 🙈"
                             )
                         )
                         continue
@@ -463,7 +576,7 @@ def process_flats(
                     applied = apply_to_flat(
                         web_driver,
                         flat_elem,
-                        i,
+                        flat_index,
                         flat_obj.title,
                         user_profile,
                         email,
@@ -479,20 +592,11 @@ def process_flats(
                             constants.log_file_path, email, flat_obj
                         )
                         LOG.info(color_me.green("Done ✅"))
-                        time.sleep(1.5)
+                        wait_before_next_application(application_delay_seconds)
                         web_driver.get(start_url)
                         time.sleep(1.5)
-                        # Refresh Flat Elements for each email iteration to avoid staleness
-                        all_flats = find_flats(web_driver)
-                        if i >= len(all_flats):
-                            LOG.warning(
-                                color_me.yellow(
-                                    "Flat list changed during apply; restarting processing loop 🔄"
-                                )
-                            )
-                            restart_processing = True
-                            break
-                        flat_elem = all_flats[i]
+                        restart_processing = True
+                        break
                     else:
                         LOG.warning(
                             color_me.yellow(
@@ -511,7 +615,7 @@ def process_flats(
                 break
 
             # Try to switch to next page if exists, in the last iteration
-            if i == len(all_flats) - 1:
+            if position == len(sorted_entries) - 1:
                 previous_page = current_page
                 current_page = next_page(web_driver, current_page)
                 page_changed = current_page != previous_page

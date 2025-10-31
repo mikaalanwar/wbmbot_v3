@@ -1,3 +1,6 @@
+import os
+import stat
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -37,8 +40,10 @@ class ChromeDriverConfigurator:
         """
         Creates the driver with the specified ChromeOptions
         """
+        driver_path = self._resolve_chromedriver_path(ChromeDriverManager().install())
+
         self.driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
+            service=Service(driver_path),
             options=self.chrome_options,
         )
         # Wait 5 seconds before doing stuff
@@ -47,3 +52,41 @@ class ChromeDriverConfigurator:
 
     def get_driver(self):
         return self.driver
+
+    @staticmethod
+    def _resolve_chromedriver_path(downloaded_path: str) -> str:
+        """
+        Ensure the path returned by webdriver-manager points to an executable chromedriver.
+        """
+
+        def ensure_executable(path: str) -> str:
+            if not os.access(path, os.X_OK):
+                current_mode = os.stat(path).st_mode
+                os.chmod(
+                    path,
+                    current_mode
+                    | stat.S_IXUSR
+                    | stat.S_IXGRP
+                    | stat.S_IXOTH,
+                )
+            return path
+
+        base_name = os.path.basename(downloaded_path)
+        if base_name.startswith("chromedriver") and not base_name.endswith(".chromedriver"):
+            return ensure_executable(downloaded_path)
+
+        driver_directory = (
+            downloaded_path
+            if os.path.isdir(downloaded_path)
+            else os.path.dirname(downloaded_path)
+        )
+        candidates = [
+            os.path.join(driver_directory, name)
+            for name in os.listdir(driver_directory)
+            if name.startswith("chromedriver") and not name.endswith(".chromedriver")
+        ]
+        for candidate in candidates:
+            if os.path.isfile(candidate):
+                return ensure_executable(candidate)
+
+        return ensure_executable(downloaded_path)

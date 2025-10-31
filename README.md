@@ -43,6 +43,7 @@ WBMBOT_v3 is a Selenium-based Python bot designed to automate the application pr
 - Self-recovers from crashes and keeps running once connectivity returns.
 - Keeps a JSON audit log to avoid duplicate submissions and emails you confirmations with the PDF expose attached.
 - Saves Angebots pages and expose PDFs locally so you can review every run.
+- Configurable, human-like delay with a live countdown between applications.
 
 ## IMPORTANT DISCLAIMER
 
@@ -81,8 +82,10 @@ python3 wbmbot_v3/main.py
 Or with the Makefile helper:
 
 ```bash
-make run ARGS="--headless"
+make run ARGS="--headless --delay 30s"
 ```
+
+Use the `--delay` flag (seconds or minutes, e.g. `10s`, `1m`, `5m`) to control how long the bot idles between applications.
 
 On the first run, the bot will guide you through a setup process to gather necessary information for applications on wbm.de. This data will be stored in a local `configs/wbm_config.json` file in a human-readable format.
 
@@ -149,7 +152,7 @@ Remember to do a clean-up if you don't want to view them!
 ## Command-Line Interface
 
 ```bash
-usage: main.py [-i INTERVAL] [-H] [-t]
+usage: main.py [-i INTERVAL] [-H] [-t] [-d DELAY]
 
 A Selenium-based bot that scrapes 'WBM Angebote' page and auto applies on appartments based on user exclusion filters
 
@@ -159,6 +162,8 @@ options:
                         Set the time interval in 'minutes' to check for new flats (refresh) on wbm.de. [default: 3 minutes]
   -H, --headless        If set, use 'headless' run. The bot will run in the background, otherwise, a chrome tab will show.
   -t, --test            If set, run test-run on the test data. This does not actually connect to wbm.de.
+  -d DELAY, --delay DELAY
+                        Set the delay between applications (e.g. 10s, 30s, 1m, 5m).
 ```
 
 ## Docker

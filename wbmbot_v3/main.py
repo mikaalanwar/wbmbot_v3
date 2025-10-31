@@ -19,7 +19,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         description="A Selenium-based bot that scrapes 'WBM Angebote' page and auto applies on appartments based on user exclusion filters",
-        usage="%(prog)s " "[-i INTERVAL] " "[-H] " "[-t]",
+        usage="%(prog)s " "[-i INTERVAL] " "[-H] " "[-t] " "[-d DELAY]",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -49,6 +49,14 @@ def parse_args():
         required=False,
         help="If set, run test-run on the test data. This does not actually connect to wbm.de.",
     )
+    parser.add_argument(
+        "-d",
+        "--delay",
+        dest="application_delay",
+        default="10s",
+        required=False,
+        help="Set the delay between applications (e.g. 10s, 30s, 1m, 5m).",
+    )
 
     return parser.parse_args()
 
@@ -63,6 +71,10 @@ def main():
 
     color_me = wbm_logger.ColoredLogger(__appname__)
     LOG = color_me.create_logger()
+
+    application_delay_seconds = misc_operations.parse_delay_to_seconds(
+        args.application_delay, default_seconds=10
+    )
 
     # Show Intro Banner
     LOG.info(color_me.cyan(f"{constants.intro_banner}"))
@@ -83,6 +95,12 @@ def main():
         else:
             LOG.info(color_me.green("Online 🟢"))
             break
+
+    LOG.info(
+        color_me.cyan(
+            f"Delay between applications set to {application_delay_seconds} seconds ⏱️"
+        )
+    )
 
     chrome_driver_instance = cdc.ChromeDriverConfigurator(args.headless, args.test)
     web_driver = chrome_driver_instance.get_driver()
@@ -117,6 +135,7 @@ def main():
                 page_changed,
                 args.interval,
                 args.test,
+                application_delay_seconds,
             )
     except Exception as e:
         LOG.error(

@@ -195,3 +195,37 @@ def get_zimmer_count(text: str) -> int:
         return int(matches[0])
 
     return None
+
+
+def parse_delay_to_seconds(value, default_seconds: int = 10) -> int:
+    """
+    Convert a human-readable delay string (e.g. 30s, 1m, 2h) to seconds.
+
+    Args:
+        value (str | int | float): Delay value provided by the user.
+        default_seconds (int): Fallback delay when parsing fails.
+
+    Returns:
+        int: Delay in seconds.
+    """
+
+    if value is None or value == "":
+        return max(default_seconds, 0)
+
+    if isinstance(value, (int, float)):
+        return max(int(value), 0)
+
+    match = re.match(r"^\s*(\d+(?:\.\d*)?)\s*([smhSMH]?)\s*$", str(value))
+    if not match:
+        return max(default_seconds, 0)
+
+    amount = float(match.group(1))
+    unit = match.group(2).lower() if match.group(2) else "s"
+
+    multiplier = 1
+    if unit == "m":
+        multiplier = 60
+    elif unit == "h":
+        multiplier = 3600
+
+    return max(int(amount * multiplier), 0)
