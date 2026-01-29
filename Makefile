@@ -32,4 +32,4 @@ run: deps
 	@$(ENV_LOAD) $(PYTHON) $(PROJECT_DIR)/main.py $(ARGS)
 
 test: deps
-	@$(ENV_LOAD) $(PYTHON) -m unittest discover
+	@$(ENV_LOAD) $(PYTHON) -m unittest discover -s tests -p "test_*.py"

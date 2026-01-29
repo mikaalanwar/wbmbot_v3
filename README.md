@@ -263,6 +263,21 @@ Environment variables (optional, can be used instead of flags):
 - `FIRESTORE_DATABASE`
 - `GOOGLE_APPLICATION_CREDENTIALS` (path to the service account JSON)
 
+### Tests
+
+Unit tests run with:
+
+```bash
+make test
+```
+
+To enable Firestore integration tests (connectivity + write/read), set:
+
+```bash
+export RUN_FIRESTORE_TESTS=1
+export FIRESTORE_TEST_COLLECTION=wbm_applications_test
+```
+
 ## Additional Information
 
 During setup, you can provide multiple email addresses. The bot will apply to each flat once per email address. By default, the bot refreshes wbm.de every `3 minutes` to check for new listings.
