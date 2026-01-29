@@ -82,10 +82,13 @@ python3 wbmbot_v3/main.py
 Or with the Makefile helper:
 
 ```bash
-make run ARGS="--headless --delay 30s"
+make run ARGS="--delay 30s"
 ```
 
 Use the `--delay` flag (seconds or minutes, e.g. `10s`, `1m`, `5m`) to control how long the bot idles between applications.
+Headless mode is the default; pass `--no-headless` to show the browser UI.
+For cron jobs, use `--run-once` to perform a single pass and exit. Exiting on the
+last page is enabled by default; pass `--no-exit-on-last-page` to keep running.
 
 On the first run, the bot will guide you through a setup process to gather necessary information for applications on wbm.de. This data will be stored in a local `configs/wbm_config.json` file in a human-readable format.
 
@@ -152,7 +155,7 @@ Remember to do a clean-up if you don't want to view them!
 ## Command-Line Interface
 
 ```bash
-usage: main.py [-i INTERVAL] [-H] [-t] [-d DELAY]
+usage: main.py [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY] [--run-once] [--exit-on-last-page|--no-exit-on-last-page]
 
 A Selenium-based bot that scrapes 'WBM Angebote' page and auto applies on appartments based on user exclusion filters
 
@@ -160,10 +163,13 @@ options:
   -h, --help            show this help message and exit
   -i INTERVAL, --interval INTERVAL
                         Set the time interval in 'minutes' to check for new flats (refresh) on wbm.de. [default: 3 minutes]
-  -H, --headless        If set, use 'headless' run. The bot will run in the background, otherwise, a chrome tab will show.
+  -H, --headless        Run with a headless browser (default: true). Use --no-headless to show the browser UI.
   -t, --test            If set, run test-run on the test data. This does not actually connect to wbm.de.
   -d DELAY, --delay DELAY
                         Set the delay between applications (e.g. 10s, 30s, 1m, 5m).
+  --run-once            Process listings once and exit (cron-friendly).
+  --exit-on-last-page   Exit immediately after the last page is reached (default: true).
+                        Use --no-exit-on-last-page to keep running.
 ```
 
 ## Docker

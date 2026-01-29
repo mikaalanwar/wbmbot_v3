@@ -21,6 +21,10 @@ color_me = wbm_logger.ColoredLogger(__appname__)
 LOG = color_me.create_logger()
 
 
+class LastPageReached(Exception):
+    """Raised when pagination has reached the final page in run-once mode."""
+
+
 def _format_delay(seconds: int) -> str:
     """Return a human-readable string for the given delay seconds."""
 
@@ -65,7 +69,7 @@ def wait_before_next_application(delay_seconds: int) -> None:
     sys.stdout.flush()
 
 
-def next_page(web_driver, current_page: int):
+def next_page(web_driver, current_page: int, terminate_on_last_page: bool = False):
     """
     Attempts to navigate to the next page of a paginated list.
 
@@ -104,6 +108,9 @@ def next_page(web_driver, current_page: int):
     except NoSuchElementException as e:
         # Log an error if the next page button is not found
         LOG.error(color_me.red("Failed to switch page, last page reached ❌"))
+        if terminate_on_last_page:
+            LOG.info(color_me.cyan("Run-once mode enabled; exiting after last page."))
+            raise LastPageReached()
     except Exception as e:
         # Log any other exceptions that occur
         LOG.error(color_me.red(f"Failed to switch page, returning to main page ❌"))
@@ -435,6 +442,8 @@ def process_flats(
     refresh_internal: int,
     test: bool,
     application_delay_seconds: int,
+    run_once: bool = False,
+    exit_on_last_page: bool = False,
 ):
     """Process each flat by checking criteria and applying if applicable."""
 
@@ -444,6 +453,9 @@ def process_flats(
             LOG.error(
                 color_me.red("No internet connection found. Retrying in 10 seconds ⚠️")
             )
+            if run_once:
+                LOG.error(color_me.red("Run-once mode enabled; exiting."))
+                return
             time.sleep(10)
             continue
 
@@ -460,6 +472,9 @@ def process_flats(
         all_flats = find_flats(web_driver)
         if not all_flats:
             LOG.info(color_me.cyan("Currently no flats available 😔"))
+            if run_once:
+                LOG.info(color_me.cyan("Run-once mode enabled; exiting."))
+                return
             time.sleep(int(refresh_internal) * 60)
             continue
 
@@ -617,11 +632,26 @@ def process_flats(
             # Try to switch to next page if exists, in the last iteration
             if position == len(sorted_entries) - 1:
                 previous_page = current_page
-                current_page = next_page(web_driver, current_page)
+                try:
+                    current_page = next_page(
+                        web_driver,
+                        current_page,
+                        terminate_on_last_page=run_once or exit_on_last_page,
+                    )
+                except LastPageReached:
+                    return
                 page_changed = current_page != previous_page
 
         if restart_processing:
             continue
+
+        if (run_once or exit_on_last_page) and not page_changed:
+            LOG.info(
+                color_me.cyan(
+                    "Exit condition met (run-once/exit-on-last-page); exiting."
+                )
+            )
+            return
 
         if not page_changed:
             time.sleep(int(refresh_internal) * 60)

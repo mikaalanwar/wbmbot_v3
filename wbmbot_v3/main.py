@@ -19,7 +19,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         description="A Selenium-based bot that scrapes 'WBM Angebote' page and auto applies on appartments based on user exclusion filters",
-        usage="%(prog)s " "[-i INTERVAL] " "[-H] " "[-t] " "[-d DELAY]",
+        usage="%(prog)s [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY] [--run-once] [--exit-on-last-page]",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -35,10 +35,10 @@ def parse_args():
         "-H",
         "--headless",
         dest="headless",
-        action="store_true",
-        default=False,
+        action=argparse.BooleanOptionalAction,
+        default=True,
         required=False,
-        help="If set, use 'headless' run. The bot will run in the background, otherwise, a chrome tab will show.",
+        help="Run with a headless browser (default: true). Use --no-headless to show the browser UI.",
     )
     parser.add_argument(
         "-t",
@@ -56,6 +56,25 @@ def parse_args():
         default="10s",
         required=False,
         help="Set the delay between applications (e.g. 10s, 30s, 1m, 5m).",
+    )
+    parser.add_argument(
+        "--run-once",
+        dest="run_once",
+        action="store_true",
+        default=False,
+        required=False,
+        help="Process listings once and exit (cron-friendly).",
+    )
+    parser.add_argument(
+        "--exit-on-last-page",
+        dest="exit_on_last_page",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        required=False,
+        help=(
+            "Exit immediately after the last page is reached (default: true). "
+            "Use --no-exit-on-last-page to keep running."
+        ),
     )
 
     return parser.parse_args()
@@ -82,7 +101,11 @@ def main():
     # Create ChromeDriver
     LOG.info(
         color_me.cyan(
-            f"Initializing Script (v{constants.bot_version}) (Headless? {args.headless}) 🚀"
+            "Initializing Script "
+            f"(v{constants.bot_version}) "
+            f"(Headless? {args.headless}) "
+            f"(Run-once? {args.run_once}) "
+            f"(Exit-on-last-page? {args.exit_on_last_page}) 🚀"
         )
     )
     LOG.info(color_me.cyan("Checking for internet connection 🔎"))
@@ -101,9 +124,6 @@ def main():
             f"Delay between applications set to {application_delay_seconds} seconds ⏱️"
         )
     )
-
-    chrome_driver_instance = cdc.ChromeDriverConfigurator(args.headless, args.test)
-    web_driver = chrome_driver_instance.get_driver()
 
     # Create WBM Config
     wbm_config = (
@@ -124,8 +144,10 @@ def main():
     page_changed = False
     LOG.info(color_me.cyan(f"Connecting to '{start_url}' 🔗"))
 
-    try:
-        while True:
+    while True:
+        chrome_driver_instance = cdc.ChromeDriverConfigurator(args.headless, args.test)
+        web_driver = chrome_driver_instance.get_driver()
+        try:
             webDriverOperations.process_flats(
                 web_driver,
                 user_profile,
@@ -136,16 +158,25 @@ def main():
                 args.interval,
                 args.test,
                 application_delay_seconds,
+                args.run_once,
+                args.exit_on_last_page,
             )
-    except Exception as e:
-        LOG.error(
-            color_me.red(f"Bot has crashed... Attempting to restart it now! ❤️‍🩹")
-        )
-        LOG.error(color_me.red(f"Crash reason: {e}"))
-        # Wait for a few seconds before restarting
-        time.sleep(5)
-        # Restart the script
-        main()
+            if args.run_once or args.exit_on_last_page:
+                break
+        except Exception as e:
+            LOG.error(
+                color_me.red(f"Bot has crashed... Attempting to restart it now! ❤️‍🩹")
+            )
+            LOG.error(color_me.red(f"Crash reason: {e}"))
+            if args.run_once:
+                raise
+            # Wait for a few seconds before restarting
+            time.sleep(5)
+        finally:
+            try:
+                web_driver.quit()
+            except Exception:
+                pass
 
 
 # * Script Starts Here

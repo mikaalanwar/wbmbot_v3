@@ -33,6 +33,8 @@ class ChromeDriverConfigurator:
         if self.headless:
             self.chrome_options.add_argument("--headless")
             self.chrome_options.add_argument("--no-sandbox")
+            self.chrome_options.add_argument("--disable-dev-shm-usage")
+            self.chrome_options.add_argument("--window-size=1920,1080")
         if self.test:
             self.chrome_options.add_argument("--log-level=0")
 
