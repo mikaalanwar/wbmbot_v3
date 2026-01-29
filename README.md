@@ -158,8 +158,11 @@ Remember to do a clean-up if you don't want to view them!
 usage: main.py [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY]
                [--run-once] [--exit-on-last-page|--no-exit-on-last-page]
                [--applications-store {file,firestore}]
+               [--config-store {file,firestore}]
+               [--config-key KEY]
                [--firestore-project-id PROJECT]
                [--firestore-collection COLLECTION]
+               [--firestore-config-collection COLLECTION]
                [--firestore-credentials PATH]
                [--firestore-database DATABASE]
 
@@ -177,10 +180,16 @@ options:
   --exit-on-last-page   Exit immediately after the last page is reached (default: true).
                         Use --no-exit-on-last-page to keep running.
   --applications-store  Where to persist submitted applications (default: file).
+                        Can also set APPLICATIONS_STORE.
+  --config-store        Where to load the WBM config from (default: file).
+                        Can also set CONFIG_STORE.
+  --config-key          Firestore document key for the WBM config (or set WBM_USER_ID).
   --firestore-project-id
                         Firestore project ID (overrides FIRESTORE_PROJECT_ID).
   --firestore-collection
                         Firestore collection name (overrides FIRESTORE_COLLECTION).
+  --firestore-config-collection
+                        Firestore collection for WBM configs (overrides FIRESTORE_CONFIG_COLLECTION).
   --firestore-credentials
                         Path to a Google service account JSON key file.
   --firestore-database  Firestore database ID (overrides FIRESTORE_DATABASE).
@@ -258,10 +267,14 @@ python3 wbmbot_v3/main.py --applications-store firestore \
 ```
 
 Environment variables (optional, can be used instead of flags):
+- `APPLICATIONS_STORE` (file|firestore)
+- `CONFIG_STORE` (file|firestore)
 - `FIRESTORE_PROJECT_ID`
 - `FIRESTORE_COLLECTION`
+- `FIRESTORE_CONFIG_COLLECTION`
 - `FIRESTORE_DATABASE`
 - `GOOGLE_APPLICATION_CREDENTIALS` (path to the service account JSON)
+- `WBM_USER_ID` (Firestore config document key)
 
 ### Tests
 
@@ -277,6 +290,17 @@ To enable Firestore integration tests (connectivity + write/read), set:
 export RUN_FIRESTORE_TESTS=1
 export FIRESTORE_TEST_COLLECTION=wbm_applications_test
 ```
+
+### Upload config to Firestore
+
+To store your `wbm_config.json` in Firestore and run the bot without a local file:
+
+```bash
+make add_user configs/wbm_config.json
+```
+
+This writes to the collection defined by `FIRESTORE_CONFIG_COLLECTION` (default: `wbm_users`).
+Use `--user-id` or `WBM_USER_ID` to control the document key.
 
 ## Additional Information
 

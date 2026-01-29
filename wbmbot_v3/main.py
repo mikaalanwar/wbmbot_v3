@@ -7,6 +7,7 @@ from handlers import user
 from helpers import constants, webDriverOperations
 from logger import wbm_logger
 from utility import io_operations, misc_operations
+from utility.config_store import build_config_store
 from utility.application_store import build_application_store
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
@@ -18,14 +19,28 @@ def parse_args():
     Parse the command line arguments
     """
 
+    def _env_choice(name: str, allowed: set, fallback: str) -> str:
+        value = os.environ.get(name)
+        if value and value.strip().lower() in allowed:
+            return value.strip().lower()
+        return fallback
+
+    default_app_store = _env_choice(
+        "APPLICATIONS_STORE", {"file", "firestore"}, "file"
+    )
+    default_config_store = _env_choice("CONFIG_STORE", {"file", "firestore"}, "file")
+
     parser = argparse.ArgumentParser(
         description="A Selenium-based bot that scrapes 'WBM Angebote' page and auto applies on appartments based on user exclusion filters",
         usage=(
             "%(prog)s [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY] "
             "[--run-once] [--exit-on-last-page|--no-exit-on-last-page] "
             "[--applications-store {file,firestore}] "
+            "[--config-store {file,firestore}] "
+            "[--config-key KEY] "
             "[--firestore-project-id PROJECT] "
             "[--firestore-collection COLLECTION] "
+            "[--firestore-config-collection COLLECTION] "
             "[--firestore-credentials PATH] "
             "[--firestore-database DATABASE]"
         ),
@@ -89,9 +104,24 @@ def parse_args():
         "--applications-store",
         dest="applications_store",
         choices=["file", "firestore"],
-        default="file",
+        default=default_app_store,
         required=False,
-        help="Where to persist submitted applications (default: file).",
+        help="Where to persist submitted applications (default: file). Can also set APPLICATIONS_STORE.",
+    )
+    parser.add_argument(
+        "--config-store",
+        dest="config_store",
+        choices=["file", "firestore"],
+        default=default_config_store,
+        required=False,
+        help="Where to load the WBM config from (default: file). Can also set CONFIG_STORE.",
+    )
+    parser.add_argument(
+        "--config-key",
+        dest="config_key",
+        default=os.environ.get("WBM_USER_ID"),
+        required=False,
+        help="Firestore document key for the WBM config (or set WBM_USER_ID).",
     )
     parser.add_argument(
         "--firestore-project-id",
@@ -106,6 +136,13 @@ def parse_args():
         default=None,
         required=False,
         help="Firestore collection name (overrides FIRESTORE_COLLECTION).",
+    )
+    parser.add_argument(
+        "--firestore-config-collection",
+        dest="firestore_config_collection",
+        default=None,
+        required=False,
+        help="Firestore collection for WBM configs (overrides FIRESTORE_CONFIG_COLLECTION).",
     )
     parser.add_argument(
         "--firestore-credentials",
@@ -151,7 +188,8 @@ def main():
             f"(Headless? {args.headless}) "
             f"(Run-once? {args.run_once}) "
             f"(Exit-on-last-page? {args.exit_on_last_page}) "
-            f"(Applications store: {args.applications_store}) 🚀"
+            f"(Applications store: {args.applications_store}) "
+            f"(Config store: {args.config_store}) 🚀"
         )
     )
     LOG.info(color_me.cyan("Checking for internet connection 🔎"))
@@ -171,12 +209,31 @@ def main():
         )
     )
 
-    # Create WBM Config
-    wbm_config = (
-        io_operations.load_wbm_config(constants.wbm_config_name)
-        if not args.test
-        else io_operations.load_wbm_config(constants.wbm_test_config_name)
+    config_store = build_config_store(
+        args.config_store,
+        constants.wbm_config_name if not args.test else constants.wbm_test_config_name,
+        allow_prompt=not args.run_once,
+        project_id=args.firestore_project_id or os.environ.get("FIRESTORE_PROJECT_ID"),
+        collection=args.firestore_config_collection
+        or os.environ.get("FIRESTORE_CONFIG_COLLECTION"),
+        credentials_path=args.firestore_credentials
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"),
+        database=args.firestore_database or os.environ.get("FIRESTORE_DATABASE"),
     )
+    config_store.initialize()
+    config_key = args.config_key or os.environ.get("WBM_USER_ID")
+    if args.config_store == "firestore" and not config_key:
+        LOG.error(
+            color_me.red(
+                "Firestore config store requires a config key. "
+                "Use --config-key or set WBM_USER_ID."
+            )
+        )
+        raise SystemExit(2)
+    wbm_config = config_store.load_config(config_key)
+    if not wbm_config:
+        LOG.error(color_me.red("Failed to load WBM config ❌"))
+        raise SystemExit(2)
     # Create User Profile
     user_profile = user.User(wbm_config)
     application_store = build_application_store(

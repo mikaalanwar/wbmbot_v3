@@ -19,7 +19,7 @@ PIP := $(PYTHON) -m pip
 PROJECT_DIR := wbmbot_v3
 REQ_FILE := $(PROJECT_DIR)/requirements.txt
 
-.PHONY: dev deps run test
+.PHONY: dev deps run test add_user
 
 dev:
 	$(PIP) install -r $(REQ_FILE)
@@ -33,3 +33,9 @@ run: deps
 
 test: deps
 	@$(ENV_LOAD) $(PYTHON) -m unittest discover -s tests -p "test_*.py"
+
+add_user: deps
+	@$(ENV_LOAD) PYTHONPATH=$(PROJECT_DIR) $(PYTHON) $(PROJECT_DIR)/scripts/add_user.py $(filter-out $@,$(MAKECMDGOALS))
+
+%:
+	@:

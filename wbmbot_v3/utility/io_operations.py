@@ -41,8 +41,27 @@ def load_wbm_config(file_name: str):
                 return user_config
             except json.JSONDecodeError as e:
                 LOG.error(color_me.red(f"Failed to parse WBM config file ❌"))
-            except TypeError as e:
-                LOG.error(color_me.red(f"Failed to parse WBM config file ❌"))
+
+
+def load_wbm_config_no_prompt(file_name: str):
+    """
+    Load the WBM config without prompting. Returns None if missing or invalid.
+    """
+
+    if os.path.isfile(file_name):
+        LOG.info(color_me.cyan("Loading WBM config ⚙️"))
+        with open(file_name, "r") as config_file:
+            try:
+                user_config = json.load(config_file)
+                return user_config
+            except json.JSONDecodeError:
+                LOG.error(color_me.red("Failed to parse WBM config file ❌"))
+            except TypeError:
+                LOG.error(color_me.red("Failed to parse WBM config file ❌"))
+        return None
+
+    LOG.error(color_me.red("No WBM config file found ❌"))
+    return None
 
 
 def initialize_application_logger(log_file: str):

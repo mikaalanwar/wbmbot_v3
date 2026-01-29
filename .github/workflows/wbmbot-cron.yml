@@ -16,6 +16,7 @@ jobs:
       GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
       GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      WBM_USER_ID: ${{ secrets.WBM_USER_ID }}
 
     steps:
       - name: Checkout
@@ -44,6 +45,9 @@ jobs:
           FIRESTORE_PROJECT_ID: regular-automations
           FIRESTORE_DATABASE: wbm-bot
           FIRESTORE_COLLECTION: wbm_applications
+          FIRESTORE_CONFIG_COLLECTION: wbm_users
+          APPLICATIONS_STORE: firestore
+          CONFIG_STORE: firestore
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
-          make run ARGS="--applications-store firestore --run-once"
+          make run ARGS="--config-key $WBM_USER_ID --run-once"

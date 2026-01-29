@@ -152,7 +152,7 @@ class FirestoreApplicationStore(ApplicationStore):
             "size": misc_operations.convert_size(flat_obj.size),
             "rooms": misc_operations.get_zimmer_count(flat_obj.rooms),
             "wbs?": flat_obj.wbs,
-            "created_at": dt.datetime.utcnow().isoformat(),
+            "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         }
 
     def has_applied(self, email: str, flat_obj) -> bool:
