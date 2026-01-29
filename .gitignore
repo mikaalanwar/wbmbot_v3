@@ -2,6 +2,7 @@
 *.log
 *.txt
 *.json
+.env
 # Folders
 **/__pycache__
 offline_viewings/angebote_pages/**

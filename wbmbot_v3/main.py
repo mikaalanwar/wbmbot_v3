@@ -7,6 +7,7 @@ from handlers import user
 from helpers import constants, webDriverOperations
 from logger import wbm_logger
 from utility import io_operations, misc_operations
+from utility.application_store import build_application_store
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
 os.environ["WDM_LOG"] = "0"
@@ -19,7 +20,15 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         description="A Selenium-based bot that scrapes 'WBM Angebote' page and auto applies on appartments based on user exclusion filters",
-        usage="%(prog)s [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY] [--run-once] [--exit-on-last-page]",
+        usage=(
+            "%(prog)s [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY] "
+            "[--run-once] [--exit-on-last-page|--no-exit-on-last-page] "
+            "[--applications-store {file,firestore}] "
+            "[--firestore-project-id PROJECT] "
+            "[--firestore-collection COLLECTION] "
+            "[--firestore-credentials PATH] "
+            "[--firestore-database DATABASE]"
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -76,6 +85,42 @@ def parse_args():
             "Use --no-exit-on-last-page to keep running."
         ),
     )
+    parser.add_argument(
+        "--applications-store",
+        dest="applications_store",
+        choices=["file", "firestore"],
+        default="file",
+        required=False,
+        help="Where to persist submitted applications (default: file).",
+    )
+    parser.add_argument(
+        "--firestore-project-id",
+        dest="firestore_project_id",
+        default=None,
+        required=False,
+        help="Firestore project ID (overrides FIRESTORE_PROJECT_ID).",
+    )
+    parser.add_argument(
+        "--firestore-collection",
+        dest="firestore_collection",
+        default=None,
+        required=False,
+        help="Firestore collection name (overrides FIRESTORE_COLLECTION).",
+    )
+    parser.add_argument(
+        "--firestore-credentials",
+        dest="firestore_credentials",
+        default=None,
+        required=False,
+        help="Path to a Google service account JSON key file.",
+    )
+    parser.add_argument(
+        "--firestore-database",
+        dest="firestore_database",
+        default=None,
+        required=False,
+        help="Firestore database ID (overrides FIRESTORE_DATABASE).",
+    )
 
     return parser.parse_args()
 
@@ -105,7 +150,8 @@ def main():
             f"(v{constants.bot_version}) "
             f"(Headless? {args.headless}) "
             f"(Run-once? {args.run_once}) "
-            f"(Exit-on-last-page? {args.exit_on_last_page}) 🚀"
+            f"(Exit-on-last-page? {args.exit_on_last_page}) "
+            f"(Applications store: {args.applications_store}) 🚀"
         )
     )
     LOG.info(color_me.cyan("Checking for internet connection 🔎"))
@@ -133,8 +179,16 @@ def main():
     )
     # Create User Profile
     user_profile = user.User(wbm_config)
-    # Create Logger file
-    io_operations.initialize_application_logger(constants.log_file_path)
+    application_store = build_application_store(
+        args.applications_store,
+        constants.log_file_path,
+        project_id=args.firestore_project_id or os.environ.get("FIRESTORE_PROJECT_ID"),
+        collection=args.firestore_collection or os.environ.get("FIRESTORE_COLLECTION"),
+        credentials_path=args.firestore_credentials
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"),
+        database=args.firestore_database or os.environ.get("FIRESTORE_DATABASE"),
+    )
+    application_store.initialize()
     # Get URL
     start_url = constants.wbm_url if not args.test else constants.test_wbm_url
 
@@ -160,6 +214,7 @@ def main():
                 application_delay_seconds,
                 args.run_once,
                 args.exit_on_last_page,
+                application_store,
             )
             if args.run_once or args.exit_on_last_page:
                 break

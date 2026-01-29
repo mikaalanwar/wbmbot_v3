@@ -155,7 +155,13 @@ Remember to do a clean-up if you don't want to view them!
 ## Command-Line Interface
 
 ```bash
-usage: main.py [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY] [--run-once] [--exit-on-last-page|--no-exit-on-last-page]
+usage: main.py [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY]
+               [--run-once] [--exit-on-last-page|--no-exit-on-last-page]
+               [--applications-store {file,firestore}]
+               [--firestore-project-id PROJECT]
+               [--firestore-collection COLLECTION]
+               [--firestore-credentials PATH]
+               [--firestore-database DATABASE]
 
 A Selenium-based bot that scrapes 'WBM Angebote' page and auto applies on appartments based on user exclusion filters
 
@@ -170,6 +176,14 @@ options:
   --run-once            Process listings once and exit (cron-friendly).
   --exit-on-last-page   Exit immediately after the last page is reached (default: true).
                         Use --no-exit-on-last-page to keep running.
+  --applications-store  Where to persist submitted applications (default: file).
+  --firestore-project-id
+                        Firestore project ID (overrides FIRESTORE_PROJECT_ID).
+  --firestore-collection
+                        Firestore collection name (overrides FIRESTORE_COLLECTION).
+  --firestore-credentials
+                        Path to a Google service account JSON key file.
+  --firestore-database  Firestore database ID (overrides FIRESTORE_DATABASE).
 ```
 
 ## Docker
@@ -230,6 +244,24 @@ Listings that do not meet these limits are skipped with a reasoned log entry. WB
 Successful applications are recorded in `logging/successful_applications.json`.
 
 **Important**: This log prevents reapplication to the same flats. ***DO NOT DELETE*** it unless you intend to re-apply to all available flats.
+
+### Firestore-backed storage (optional)
+
+If you run the bot as a cron job (e.g., GitHub Actions) and need persistent state,
+you can store applications in Firestore instead of the local filesystem:
+
+```bash
+python3 wbmbot_v3/main.py --applications-store firestore \
+  --firestore-project-id YOUR_PROJECT_ID \
+  --firestore-collection wbm_applications \
+  --firestore-credentials /path/to/service-account.json
+```
+
+Environment variables (optional, can be used instead of flags):
+- `FIRESTORE_PROJECT_ID`
+- `FIRESTORE_COLLECTION`
+- `FIRESTORE_DATABASE`
+- `GOOGLE_APPLICATION_CREDENTIALS` (path to the service account JSON)
 
 ## Additional Information
 

@@ -14,7 +14,7 @@ from selenium.common.exceptions import (
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from utility import io_operations, misc_operations
+from utility import misc_operations
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
 color_me = wbm_logger.ColoredLogger(__appname__)
@@ -444,6 +444,7 @@ def process_flats(
     application_delay_seconds: int,
     run_once: bool = False,
     exit_on_last_page: bool = False,
+    application_store=None,
 ):
     """Process each flat by checking criteria and applying if applicable."""
 
@@ -539,9 +540,10 @@ def process_flats(
 
             for email in user_profile.emails:
                 # Proceed to check whether we should apply to the flat or skip
-                if not io_operations.check_flat_already_applied(
-                    constants.log_file_path, email, flat_obj
-                ):
+                if application_store is None:
+                    raise RuntimeError("Application store is not configured.")
+
+                if not application_store.has_applied(email, flat_obj):
                     if misc_operations.contains_filter_keywords(
                         flat_elem, user_profile.exclude
                     )[0]:
@@ -603,9 +605,7 @@ def process_flats(
                                 f"Applying to flat: {flat_obj.title} for '{email}' 📩"
                             )
                         )
-                        io_operations.write_log_file(
-                            constants.log_file_path, email, flat_obj
-                        )
+                        application_store.record_application(email, flat_obj)
                         LOG.info(color_me.green("Done ✅"))
                         wait_before_next_application(application_delay_seconds)
                         web_driver.get(start_url)

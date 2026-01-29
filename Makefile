@@ -1,3 +1,9 @@
+ifneq (,$(wildcard .env))
+include .env
+ENV_VARS := $(shell sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' .env)
+export $(ENV_VARS)
+endif
+
 PYENV_CMD := $(shell command -v pyenv 2>/dev/null)
 ifdef PYENV_CMD
 PYENV_PYTHON := $(shell pyenv exec python -c 'import sys; print(sys.executable)' 2>/dev/null)
@@ -13,13 +19,17 @@ PIP := $(PYTHON) -m pip
 PROJECT_DIR := wbmbot_v3
 REQ_FILE := $(PROJECT_DIR)/requirements.txt
 
-.PHONY: dev run test
+.PHONY: dev deps run test
 
 dev:
 	$(PIP) install -r $(REQ_FILE)
 
-run:
-	$(PYTHON) $(PROJECT_DIR)/main.py $(ARGS)
+deps: dev
 
-test:
-	$(PYTHON) -m unittest discover
+ENV_LOAD := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
+
+run: deps
+	@$(ENV_LOAD) $(PYTHON) $(PROJECT_DIR)/main.py $(ARGS)
+
+test: deps
+	@$(ENV_LOAD) $(PYTHON) -m unittest discover

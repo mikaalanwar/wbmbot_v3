@@ -5,3 +5,4 @@ selenium==4.18.1
 webdriver_manager==4.0.1
 yagmail==0.15.293
 lxml[html_clean]
+google-cloud-firestore==2.14.0
