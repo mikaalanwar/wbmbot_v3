@@ -22,6 +22,9 @@ class ConfigStore:
     def load_config(self, config_key: Optional[str] = None):
         raise NotImplementedError
 
+    def list_configs(self):
+        raise NotImplementedError
+
     def save_config(self, config_key: str, config: dict) -> None:
         raise NotImplementedError
 
@@ -35,6 +38,10 @@ class FileConfigStore(ConfigStore):
         if self.allow_prompt:
             return io_operations.load_wbm_config(self.path)
         return io_operations.load_wbm_config_no_prompt(self.path)
+
+    def list_configs(self):
+        config = self.load_config()
+        return [config] if config else []
 
     def save_config(self, config_key: str, config: dict) -> None:
         io_operations.create_directory_if_not_exists(os.path.dirname(self.path))
@@ -103,7 +110,24 @@ class FirestoreConfigStore(ConfigStore):
             )
         data = doc.to_dict() or {}
         data.pop("_id", None)
+        data.setdefault("user_id", doc.id)
         return data
+
+    def list_configs(self):
+        if not self._collection:
+            raise RuntimeError("Firestore config store not initialized.")
+        try:
+            docs = list(self._collection.stream())
+        except _GOOGLE_API_ERROR as exc:
+            LOG.error(color_me.red(f"Firestore read failed: {exc}"))
+            raise
+        configs = []
+        for doc in docs:
+            data = doc.to_dict() or {}
+            data.pop("_id", None)
+            data.setdefault("user_id", doc.id)
+            configs.append(data)
+        return configs
 
     def save_config(self, config_key: str, config: dict) -> None:
         if not self._collection:

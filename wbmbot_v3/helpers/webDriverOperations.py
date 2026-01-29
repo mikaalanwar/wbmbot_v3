@@ -434,7 +434,7 @@ def apply_to_flat(
 
 def process_flats(
     web_driver,
-    user_profile,
+    user_profiles,
     start_url: str,
     current_page: int,
     previous_page: int,
@@ -538,93 +538,99 @@ def process_flats(
                 LOG.info(color_me.magenta(f"Flat Element: {flat_elem.text}"))
                 LOG.info(color_me.magenta(f"Flat Obj: {flat_obj}"))
 
-            for email in user_profile.emails:
-                # Proceed to check whether we should apply to the flat or skip
-                if application_store is None:
-                    raise RuntimeError("Application store is not configured.")
+            for user_profile in user_profiles:
+                if not getattr(user_profile, "emails", None):
+                    continue
+                for email in user_profile.emails:
+                    # Proceed to check whether we should apply to the flat or skip
+                    if application_store is None:
+                        raise RuntimeError("Application store is not configured.")
 
-                if not application_store.has_applied(email, flat_obj):
-                    if misc_operations.contains_filter_keywords(
-                        flat_elem, user_profile.exclude
-                    )[0]:
-                        LOG.warning(
-                            color_me.yellow(
-                                f"Ignoring flat '{flat_obj.title}' because it contains exclude keyword(s) --> {misc_operations.contains_filter_keywords(flat_elem, user_profile.exclude)[1]} 🙈"
+                    if not application_store.has_applied(email, flat_obj):
+                        if misc_operations.contains_filter_keywords(
+                            flat_elem, user_profile.exclude
+                        )[0]:
+                            LOG.warning(
+                                color_me.yellow(
+                                    f"Ignoring flat '{flat_obj.title}' because it contains exclude keyword(s) --> {misc_operations.contains_filter_keywords(flat_elem, user_profile.exclude)[1]} 🙈"
+                                )
                             )
-                        )
-                        continue
-                    if flat_obj.wbs and not user_profile.wbs:
-                        LOG.warning(
-                            color_me.yellow(
-                                f"Ignoring flat '{flat_obj.title}' because it requires WBS and your profile has no WBS 🙈"
+                            continue
+                        if flat_obj.wbs and not user_profile.wbs:
+                            LOG.warning(
+                                color_me.yellow(
+                                    f"Ignoring flat '{flat_obj.title}' because it requires WBS and your profile has no WBS 🙈"
+                                )
                             )
-                        )
-                        continue
-                    if not misc_operations.verify_flat_rent(
-                        misc_operations.convert_rent(flat_obj.total_rent),
-                        user_profile.flat_rent_below,
-                    ):
-                        LOG.warning(
-                            color_me.yellow(
-                                f"Ignoring flat '{flat_obj.title}' because the rent doesn't match our criteria --> Flat Rent: {misc_operations.convert_rent(flat_obj.total_rent)} € | User wants it below: {user_profile.flat_rent_below} € 🙈"
+                            continue
+                        if not misc_operations.verify_flat_rent(
+                            misc_operations.convert_rent(flat_obj.total_rent),
+                            user_profile.flat_rent_below,
+                        ):
+                            LOG.warning(
+                                color_me.yellow(
+                                    f"Ignoring flat '{flat_obj.title}' because the rent doesn't match our criteria --> Flat Rent: {misc_operations.convert_rent(flat_obj.total_rent)} € | User wants it below: {user_profile.flat_rent_below} € 🙈"
+                                )
                             )
-                        )
-                        continue
-                    if not misc_operations.verify_flat_size(
-                        misc_operations.convert_size(flat_obj.size),
-                        user_profile.flat_size_above,
-                    ):
-                        LOG.warning(
-                            color_me.yellow(
-                                f"Ignoring flat '{flat_obj.title}' because the size doesn't match our criteria --> Flat Size: {misc_operations.convert_size(flat_obj.size)} m² | User wants it above: {user_profile.flat_size_above} m² 🙈"
+                            continue
+                        if not misc_operations.verify_flat_size(
+                            misc_operations.convert_size(flat_obj.size),
+                            user_profile.flat_size_above,
+                        ):
+                            LOG.warning(
+                                color_me.yellow(
+                                    f"Ignoring flat '{flat_obj.title}' because the size doesn't match our criteria --> Flat Size: {misc_operations.convert_size(flat_obj.size)} m² | User wants it above: {user_profile.flat_size_above} m² 🙈"
+                                )
                             )
-                        )
-                        continue
-                    if not misc_operations.verify_flat_rooms(
-                        misc_operations.get_zimmer_count(flat_obj.rooms),
-                        user_profile.flat_rooms_above,
-                    ):
-                        LOG.warning(
-                            color_me.yellow(
-                                f"Ignoring flat '{flat_obj.title}' because the rooms don't match our criteria --> Flat Rooms: {misc_operations.get_zimmer_count(flat_obj.rooms)} | User wants it above: {user_profile.flat_rooms_above} 🙈"
+                            continue
+                        if not misc_operations.verify_flat_rooms(
+                            misc_operations.get_zimmer_count(flat_obj.rooms),
+                            user_profile.flat_rooms_above,
+                        ):
+                            LOG.warning(
+                                color_me.yellow(
+                                    f"Ignoring flat '{flat_obj.title}' because the rooms don't match our criteria --> Flat Rooms: {misc_operations.get_zimmer_count(flat_obj.rooms)} | User wants it above: {user_profile.flat_rooms_above} 🙈"
+                                )
                             )
+                            continue
+                        applied = apply_to_flat(
+                            web_driver,
+                            flat_elem,
+                            flat_index,
+                            flat_obj.title,
+                            user_profile,
+                            email,
+                            test,
                         )
-                        continue
-                    applied = apply_to_flat(
-                        web_driver,
-                        flat_elem,
-                        flat_index,
-                        flat_obj.title,
-                        user_profile,
-                        email,
-                        test,
-                    )
-                    if applied:
-                        LOG.info(
-                            color_me.cyan(
-                                f"Applying to flat: {flat_obj.title} for '{email}' 📩"
+                        if applied:
+                            LOG.info(
+                                color_me.cyan(
+                                    f"Applying to flat: {flat_obj.title} for '{email}' 📩"
+                                )
                             )
-                        )
-                        application_store.record_application(email, flat_obj)
-                        LOG.info(color_me.green("Done ✅"))
-                        wait_before_next_application(application_delay_seconds)
-                        web_driver.get(start_url)
-                        time.sleep(1.5)
-                        restart_processing = True
-                        break
+                            application_store.record_application(email, flat_obj)
+                            LOG.info(color_me.green("Done ✅"))
+                            wait_before_next_application(application_delay_seconds)
+                            web_driver.get(start_url)
+                            time.sleep(1.5)
+                            restart_processing = True
+                            break
+                        else:
+                            LOG.warning(
+                                color_me.yellow(
+                                    f"Ignoring flat: {flat_obj.title} because it is for Seniors only ('seniorenwohnungen') 🙈"
+                                )
+                            )
                     else:
                         LOG.warning(
                             color_me.yellow(
-                                f"Ignoring flat: {flat_obj.title} because it is for Seniors only ('seniorenwohnungen') 🙈"
+                                f"Oops, we already applied for flat: {flat_obj.title} 🚫"
                             )
                         )
-                else:
-                    LOG.warning(
-                        color_me.yellow(
-                            f"Oops, we already applied for flat: {flat_obj.title} 🚫"
-                        )
-                    )
-                    continue
+                        continue
+
+                if restart_processing:
+                    break
 
             if restart_processing:
                 break

@@ -222,20 +222,18 @@ def main():
     )
     config_store.initialize()
     config_key = args.config_key or os.environ.get("WBM_USER_ID")
-    if args.config_store == "firestore" and not config_key:
-        LOG.error(
-            color_me.red(
-                "Firestore config store requires a config key. "
-                "Use --config-key or set WBM_USER_ID."
-            )
-        )
+    if args.config_store == "firestore" and config_key:
+        configs = [config_store.load_config(config_key)]
+    else:
+        configs = config_store.list_configs()
+
+    configs = [cfg for cfg in configs if cfg]
+    if not configs:
+        LOG.error(color_me.red("Failed to load WBM config(s) ❌"))
         raise SystemExit(2)
-    wbm_config = config_store.load_config(config_key)
-    if not wbm_config:
-        LOG.error(color_me.red("Failed to load WBM config ❌"))
-        raise SystemExit(2)
-    # Create User Profile
-    user_profile = user.User(wbm_config)
+
+    # Create User Profiles
+    user_profiles = [user.User(cfg) for cfg in configs]
     application_store = build_application_store(
         args.applications_store,
         constants.log_file_path,
@@ -261,7 +259,7 @@ def main():
         try:
             webDriverOperations.process_flats(
                 web_driver,
-                user_profile,
+                user_profiles,
                 start_url,
                 current_page,
                 previous_page,
