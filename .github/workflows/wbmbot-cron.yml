@@ -50,4 +50,8 @@ jobs:
           CONFIG_STORE: firestore
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
-          make run ARGS="--config-key $WBM_USER_ID --run-once"
+          if [ -z "$WBM_USER_ID" ]; then
+            echo "WBM_USER_ID secret is required for Firestore config store."
+            exit 2
+          fi
+          make run ARGS="--run-once"
