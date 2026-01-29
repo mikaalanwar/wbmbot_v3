@@ -16,7 +16,6 @@ jobs:
       GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
       GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-      WBM_USER_ID: ${{ secrets.WBM_USER_ID }}
 
     steps:
       - name: Checkout
@@ -50,8 +49,4 @@ jobs:
           CONFIG_STORE: firestore
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
-          if [ -z "$WBM_USER_ID" ]; then
-            echo "WBM_USER_ID secret is required for Firestore config store."
-            exit 2
-          fi
           make run ARGS="--run-once"

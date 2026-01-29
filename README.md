@@ -274,7 +274,7 @@ Environment variables (optional, can be used instead of flags):
 - `FIRESTORE_CONFIG_COLLECTION`
 - `FIRESTORE_DATABASE`
 - `GOOGLE_APPLICATION_CREDENTIALS` (path to the service account JSON)
-- `WBM_USER_ID` (Firestore config document key)
+- `WBM_USER_ID` (optional: Firestore config document key to target a single user)
 
 ### Tests
 
@@ -300,7 +300,9 @@ make add_user configs/wbm_config.json
 ```
 
 This writes to the collection defined by `FIRESTORE_CONFIG_COLLECTION` (default: `wbm_users`).
-Use `--user-id` or `WBM_USER_ID` to control the document key.
+Use `--user-id` or `WBM_USER_ID` to control the document key. If no `WBM_USER_ID`
+is provided at runtime, the bot will load **all** user configs from Firestore and
+apply using each profile.
 
 ## Additional Information
 
