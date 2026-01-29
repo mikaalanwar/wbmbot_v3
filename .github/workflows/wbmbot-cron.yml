@@ -34,9 +34,24 @@ jobs:
           service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
 
       - name: Authenticate to GCP (Service Account Key)
-        if: ${{ env.GCP_SA_KEY != '' }}
+        if: ${{ env.GCP_SA_KEY != '' && (env.GCP_WIF_PROVIDER == '' || env.GCP_SERVICE_ACCOUNT == '') }}
         run: |
-          printf '%s' "${{ env.GCP_SA_KEY }}" > /tmp/gcp-sa.json
+          python - <<'PY'
+          import base64
+          import json
+          import os
+
+          raw = os.environ["GCP_SA_KEY"].strip()
+          try:
+            json.loads(raw)
+            data = raw
+          except json.JSONDecodeError:
+            data = base64.b64decode(raw).decode("utf-8")
+            json.loads(data)
+
+          with open("/tmp/gcp-sa.json", "w", encoding="utf-8") as handle:
+            handle.write(data)
+          PY
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-sa.json" >> "$GITHUB_ENV"
 
       - name: Run bot
