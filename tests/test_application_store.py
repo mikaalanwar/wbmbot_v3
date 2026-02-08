@@ -108,5 +108,20 @@ class FirestoreApplicationStoreTests(unittest.TestCase):
                 pass
 
 
+class FirestoreEntryTests(unittest.TestCase):
+    def test_build_entry_includes_address_and_applied_on(self):
+        email = "user@example.com"
+        flat = DummyFlat(hash_value="hash-entry")
+        entry = FirestoreApplicationStore._build_entry(email, flat)
+
+        self.assertEqual(entry["email"], email)
+        self.assertEqual(entry["flat_hash"], flat.hash)
+        self.assertIn("applied_on", entry)
+        self.assertEqual(entry["applied_on"], entry["date"])
+        self.assertIn("address", entry)
+        self.assertIn(flat.street, entry["address"])
+        self.assertIn(flat.zip_code, entry["address"])
+
+
 if __name__ == "__main__":
     unittest.main()
