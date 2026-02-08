@@ -578,7 +578,14 @@ def apply_to_flat(
     # Download as PDF (only in debug mode)
     pdf_path = None
     if not test and debug_dir:
-        pdf_path = download_expose_as_pdf(web_driver, flat_title, debug_dir)
+        try:
+            pdf_path = download_expose_as_pdf(web_driver, flat_title, debug_dir)
+        except Exception as exc:
+            LOG.warning(
+                color_me.yellow(
+                    f"Expose download failed for '{flat_title}': {exc}. Continuing without PDF. 🚧"
+                )
+            )
 
     # Submit form
     if not test:

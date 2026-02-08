@@ -69,4 +69,4 @@ jobs:
           CONFIG_STORE: firestore
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
-          make run ARGS="--run-once"
+          make run ARGS="--run-once --no-debug"
