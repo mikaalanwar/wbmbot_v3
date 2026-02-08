@@ -27,9 +27,26 @@ dev:
 deps: dev
 
 ENV_LOAD := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
+DEBUG_FLAG :=
+ifneq ($(filter --debug%,$(MAKEFLAGS)),)
+DEBUG_FLAG := --debug
+endif
+ifneq ($(filter d,$(MAKEFLAGS)),)
+DEBUG_FLAG := --debug
+endif
+ifeq ($(DEBUG),1)
+DEBUG_FLAG := --debug
+endif
+
+RUN_ARGS := $(ARGS)
+ifneq ($(strip $(DEBUG_FLAG)),)
+ifeq ($(findstring --debug,$(RUN_ARGS)),)
+RUN_ARGS := $(RUN_ARGS) $(DEBUG_FLAG)
+endif
+endif
 
 run: deps
-	@$(ENV_LOAD) $(PYTHON) $(PROJECT_DIR)/main.py $(ARGS)
+	@$(ENV_LOAD) $(PYTHON) $(PROJECT_DIR)/main.py $(RUN_ARGS)
 
 test: deps
 	@$(ENV_LOAD) $(PYTHON) -m unittest discover -s tests -p "test_*.py"

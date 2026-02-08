@@ -8,7 +8,11 @@ from helpers import constants, webDriverOperations
 from logger import wbm_logger
 from utility import io_operations, misc_operations
 from utility.config_store import build_config_store
-from utility.application_store import build_application_store
+from utility.application_store import (
+    CompositeApplicationStore,
+    FirestoreApplicationStore,
+    build_application_store,
+)
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
 os.environ["WDM_LOG"] = "0"
@@ -25,10 +29,17 @@ def parse_args():
             return value.strip().lower()
         return fallback
 
+    def _env_bool(name: str, fallback: bool = False) -> bool:
+        value = os.environ.get(name)
+        if value is None:
+            return fallback
+        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
     default_app_store = _env_choice(
         "APPLICATIONS_STORE", {"file", "firestore"}, "file"
     )
     default_config_store = _env_choice("CONFIG_STORE", {"file", "firestore"}, "file")
+    default_debug = _env_bool("WBM_DEBUG", False)
 
     parser = argparse.ArgumentParser(
         description="A Selenium-based bot that scrapes 'WBM Angebote' page and auto applies on appartments based on user exclusion filters",
@@ -158,6 +169,14 @@ def parse_args():
         required=False,
         help="Firestore database ID (overrides FIRESTORE_DATABASE).",
     )
+    parser.add_argument(
+        "--debug",
+        dest="debug",
+        action=argparse.BooleanOptionalAction,
+        default=default_debug,
+        required=False,
+        help="Enable debug logging and dump HTML/screenshot artifacts to disk.",
+    )
 
     return parser.parse_args()
 
@@ -189,7 +208,8 @@ def main():
             f"(Run-once? {args.run_once}) "
             f"(Exit-on-last-page? {args.exit_on_last_page}) "
             f"(Applications store: {args.applications_store}) "
-            f"(Config store: {args.config_store}) 🚀"
+            f"(Config store: {args.config_store}) "
+            f"(Debug? {args.debug}) 🚀"
         )
     )
     LOG.info(color_me.cyan("Checking for internet connection 🔎"))
@@ -208,6 +228,16 @@ def main():
             f"Delay between applications set to {application_delay_seconds} seconds ⏱️"
         )
     )
+
+    debug_dir = None
+    if args.debug:
+        debug_dir = constants.debug_dump_path
+        io_operations.initialize_debug_logging(constants.debug_log_path)
+        LOG.info(
+            color_me.cyan(
+                f"Debug mode enabled; dumps/logs will be stored in {debug_dir} 🧾"
+            )
+        )
 
     config_store = build_config_store(
         args.config_store,
@@ -243,6 +273,22 @@ def main():
         or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"),
         database=args.firestore_database or os.environ.get("FIRESTORE_DATABASE"),
     )
+    if os.environ.get("GITHUB_ACTIONS", "").strip().lower() == "true":
+        audit_collection = os.environ.get(
+            "FIRESTORE_GITHUB_ACTIONS_COLLECTION",
+            "wbm_applications_github_actions",
+        )
+        audit_store = FirestoreApplicationStore(
+            project_id=args.firestore_project_id
+            or os.environ.get("FIRESTORE_PROJECT_ID"),
+            collection=audit_collection,
+            credentials_path=args.firestore_credentials
+            or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"),
+            database=args.firestore_database or os.environ.get("FIRESTORE_DATABASE"),
+        )
+        application_store = CompositeApplicationStore(
+            [application_store, audit_store], label="primary+github-actions"
+        )
     application_store.initialize()
     # Get URL
     start_url = constants.wbm_url if not args.test else constants.test_wbm_url
@@ -270,6 +316,7 @@ def main():
                 args.run_once,
                 args.exit_on_last_page,
                 application_store,
+                debug_dir,
             )
             if args.run_once or args.exit_on_last_page:
                 break

@@ -8,6 +8,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "wbmbot_v3"))
 
 from utility.application_store import (  # noqa: E402
+    CompositeApplicationStore,
     FileApplicationStore,
     FirestoreApplicationStore,
     build_application_store,
@@ -44,6 +45,27 @@ class FileApplicationStoreTests(unittest.TestCase):
     def test_build_store_defaults_to_file(self):
         store = build_application_store("file", "/tmp/does-not-matter.json")
         self.assertIsInstance(store, FileApplicationStore)
+
+
+class CompositeApplicationStoreTests(unittest.TestCase):
+    def test_composite_checks_all_stores(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_path_one = os.path.join(temp_dir, "one.json")
+            log_path_two = os.path.join(temp_dir, "two.json")
+
+            store_one = FileApplicationStore(log_path_one)
+            store_two = FileApplicationStore(log_path_two)
+            composite = CompositeApplicationStore([store_one, store_two])
+            composite.initialize()
+
+            email = "composite@example.com"
+            flat = DummyFlat(hash_value="hash-composite")
+
+            self.assertFalse(composite.has_applied(email, flat))
+            composite.record_application(email, flat)
+            self.assertTrue(composite.has_applied(email, flat))
+            self.assertTrue(store_one.has_applied(email, flat))
+            self.assertTrue(store_two.has_applied(email, flat))
 
 
 class FirestoreApplicationStoreTests(unittest.TestCase):

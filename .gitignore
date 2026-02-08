@@ -7,6 +7,7 @@
 **/__pycache__
 offline_viewings/angebote_pages/**
 offline_viewings/apartments_expose_pdfs/**
+logging/debug/**
 # Exclude
 !requirements.txt
 !test-data/**

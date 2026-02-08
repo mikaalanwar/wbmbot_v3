@@ -23,6 +23,13 @@ log_file_path = f"{os.getcwd()}/logging/successful_applications.json"
 # Script Logging
 script_log_path = f"{os.getcwd()}/logging/wbmbot-v2_{today}.log"
 
+# Debug logging + dumps
+debug_dump_root = os.path.join(os.getcwd(), "logging", "debug")
+debug_dump_path = os.path.join(debug_dump_root, now)
+debug_html_path = os.path.join(debug_dump_path, "html")
+debug_screenshot_path = os.path.join(debug_dump_path, "screenshots")
+debug_log_path = os.path.join(debug_dump_path, "wbmbot-debug.log")
+
 # Offline viewing paths
 offline_angebote_path = f"{os.getcwd()}/offline_viewings/angebote_pages/"
 offline_apartment_path = f"{os.getcwd()}/offline_viewings/apartments_expose_pdfs/"

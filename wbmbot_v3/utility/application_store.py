@@ -67,6 +67,45 @@ class ApplicationStore:
         raise NotImplementedError
 
 
+class CompositeApplicationStore(ApplicationStore):
+    def __init__(self, stores, label: str | None = None):
+        self.stores = [store for store in (stores or []) if store]
+        self.label = label or "composite"
+
+    def initialize(self) -> None:
+        for store in self.stores:
+            store.initialize()
+        LOG.info(
+            color_me.cyan(
+                f"Using composite application store ({self.label}, stores={len(self.stores)}) 🧩"
+            )
+        )
+
+    def has_applied(self, email: str, flat_obj) -> bool:
+        for store in self.stores:
+            try:
+                if store.has_applied(email, flat_obj):
+                    return True
+            except Exception as exc:
+                LOG.error(
+                    color_me.red(
+                        f"Application store read failed ({type(store).__name__}): {exc}"
+                    )
+                )
+        return False
+
+    def record_application(self, email: str, flat_obj) -> None:
+        for store in self.stores:
+            try:
+                store.record_application(email, flat_obj)
+            except Exception as exc:
+                LOG.error(
+                    color_me.red(
+                        f"Application store write failed ({type(store).__name__}): {exc}"
+                    )
+                )
+
+
 class FileApplicationStore(ApplicationStore):
     def __init__(self, log_file_path: str):
         self.log_file_path = log_file_path
@@ -141,13 +180,17 @@ class FirestoreApplicationStore(ApplicationStore):
 
     @staticmethod
     def _build_entry(email: str, flat_obj) -> dict:
+        street = flat_obj.street
+        zip_code = flat_obj.zip_code
         return {
             "email": (email or "").strip(),
             "flat_hash": flat_obj.hash,
             "date": constants.today.isoformat(),
+            "applied_on": constants.today.isoformat(),
             "title": flat_obj.title,
-            "street": flat_obj.street,
-            "zip_code": flat_obj.zip_code,
+            "street": street,
+            "zip_code": zip_code,
+            "address": f"{street} {zip_code}".strip(),
             "rent": misc_operations.convert_rent(flat_obj.total_rent),
             "size": misc_operations.convert_size(flat_obj.size),
             "rooms": misc_operations.get_zimmer_count(flat_obj.rooms),

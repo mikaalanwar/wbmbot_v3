@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 
@@ -77,6 +78,35 @@ def initialize_application_logger(log_file: str):
         # If the log file does not exist, create it by opening in append mode and immediately closing it
         with open(log_file, "a") as file:
             pass
+
+
+def initialize_debug_logging(log_file: str) -> str | None:
+    """
+    Attach a file handler to the root logger so all logs are persisted to disk.
+    Returns the log file path when initialized.
+    """
+
+    if not log_file:
+        return None
+
+    directory = os.path.dirname(log_file)
+    if directory:
+        create_directory_if_not_exists(directory)
+
+    root_logger = logging.getLogger()
+    log_file_abs = os.path.abspath(log_file)
+    for handler in root_logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            if os.path.abspath(getattr(handler, "baseFilename", "")) == log_file_abs:
+                return log_file
+
+    handler = logging.FileHandler(log_file, encoding="utf-8")
+    formatter = logging.Formatter(
+        wbm_logger.BASIC_FORMAT, datefmt="%d.%m.%Y - %H:%M"
+    )
+    handler.setFormatter(formatter)
+    root_logger.addHandler(handler)
+    return log_file
 
 
 def write_log_file(log_file: str, email: str, flat_obj):

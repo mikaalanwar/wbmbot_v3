@@ -2,10 +2,12 @@ name: WBMBot Cron
 
 on:
   schedule:
-    # Runs every 3 hours outside 01:00–07:00 CET on weekdays (GitHub cron uses UTC).
-    # 01:00–07:00 CET == 00:00–06:00 UTC, so we schedule at:
-    # 07,10,13,16,19,22 UTC == 08,11,14,17,20,23 CET.
-    - cron: "0 7,10,13,16,19,22 * * 1-5"
+    # Weekdays only. GitHub cron uses UTC.
+    # Schedule runs every 5 minutes between 06:00–21:00 CET.
+    # 06:00–20:55 CET == 05:00–19:55 UTC, plus 21:00 CET == 20:00 UTC.
+    # Note: UTC does not account for daylight saving time (CEST).
+    - cron: "*/5 5-19 * * 1-5"
+    - cron: "0 20 * * 1-5"
   workflow_dispatch:
 
 permissions:
