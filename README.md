@@ -76,7 +76,7 @@ pip install -r requirements-dev.txt
 To launch the bot, navigate to the project directory and execute:
 
 ```bash
-python3 -m wbmbot_v3
+PYTHONPATH=. python3 -m wbmbot_v3.main
 ```
 
 Or with the Makefile helper:
@@ -260,7 +260,7 @@ If you run the bot as a cron job (e.g., GitHub Actions) and need persistent stat
 you can store applications in Firestore instead of the local filesystem:
 
 ```bash
-python3 -m wbmbot_v3 --applications-store firestore \
+PYTHONPATH=. python3 -m wbmbot_v3.main --applications-store firestore \
   --firestore-project-id YOUR_PROJECT_ID \
   --firestore-collection wbm_applications \
   --firestore-credentials /path/to/service-account.json

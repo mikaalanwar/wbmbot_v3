@@ -1,0 +1,31 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.10"
+files = [
+    "wbmbot_v3/main.py",
+    "wbmbot_v3/helpers/browser_actions.py",
+    "wbmbot_v3/helpers/debug_artifacts.py",
+    "wbmbot_v3/helpers/listing_processor.py",
+    "wbmbot_v3/helpers/webDriverOperations.py",
+    "wbmbot_v3/utility/application_store.py",
+    "wbmbot_v3/utility/config_store.py",
+    "wbmbot_v3/utility/eligibility.py",
+    "wbmbot_v3/utility/firestore_support.py",
+    "wbmbot_v3/utility/io_operations.py",
+]
+follow_imports = "skip"
+ignore_missing_imports = true
+show_error_codes = true

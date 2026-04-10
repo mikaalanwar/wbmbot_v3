@@ -19,6 +19,7 @@ PIP := $(PYTHON) -m pip
 PROJECT_DIR := wbmbot_v3
 REQ_FILE := $(PROJECT_DIR)/requirements.txt
 DEV_REQ_FILE := requirements-dev.txt
+REPO_ROOT := $(CURDIR)
 
 .PHONY: dev deps run test lint typecheck check add_user
 
@@ -48,7 +49,7 @@ endif
 endif
 
 run: deps
-	@$(ENV_LOAD) $(PYTHON) -m $(PROJECT_DIR) $(RUN_ARGS)
+	@$(ENV_LOAD) PYTHONPATH=$(REPO_ROOT) $(PYTHON) -m $(PROJECT_DIR).main $(RUN_ARGS)
 
 test: dev
 	@$(ENV_LOAD) $(PYTHON) -m pytest -q
@@ -62,7 +63,7 @@ typecheck: dev
 check: lint typecheck test
 
 add_user: deps
-	@$(ENV_LOAD) $(PYTHON) -m $(PROJECT_DIR).scripts.add_user $(filter-out $@,$(MAKECMDGOALS))
+	@$(ENV_LOAD) PYTHONPATH=$(REPO_ROOT) $(PYTHON) -m $(PROJECT_DIR).scripts.add_user $(filter-out $@,$(MAKECMDGOALS))
 
 %:
 	@:

@@ -38,4 +38,4 @@ COPY wbmbot_v3/ /home/wbmbot_v3
 RUN pip3 install --no-cache-dir -r /home/wbmbot_v3/requirements.txt
 
 # Command to run the bot
-CMD ["python3", "-m", "wbmbot_v3", "-H"]
+CMD ["env", "PYTHONPATH=/home/wbmbot_v3", "python3", "-m", "wbmbot_v3.main", "-H"]
