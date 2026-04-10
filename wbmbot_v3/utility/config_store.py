@@ -1,30 +1,29 @@
 import json
 import os
-from typing import Optional
+from abc import ABC, abstractmethod
+from typing import Any
 
-from helpers import constants
-from logger import wbm_logger
-from utility import io_operations
-from utility.application_store import _patch_protobuf_imports_for_py314
+from wbmbot_v3.logger import wbm_logger
+from wbmbot_v3.utility import firestore_support, io_operations
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
 color_me = wbm_logger.ColoredLogger(__appname__)
 LOG = color_me.create_logger()
 
-_FIRESTORE = None
-_GOOGLE_API_ERROR = None
 
-
-class ConfigStore:
+class ConfigStore(ABC):
     def initialize(self) -> None:
         return None
 
-    def load_config(self, config_key: Optional[str] = None):
+    @abstractmethod
+    def load_config(self, config_key: str | None = None):
         raise NotImplementedError
 
+    @abstractmethod
     def list_configs(self):
         raise NotImplementedError
 
+    @abstractmethod
     def save_config(self, config_key: str, config: dict) -> None:
         raise NotImplementedError
 
@@ -34,7 +33,7 @@ class FileConfigStore(ConfigStore):
         self.path = path
         self.allow_prompt = allow_prompt
 
-    def load_config(self, config_key: Optional[str] = None):
+    def load_config(self, config_key: str | None = None):
         if self.allow_prompt:
             return io_operations.load_wbm_config(self.path)
         return io_operations.load_wbm_config_no_prompt(self.path)
@@ -52,39 +51,25 @@ class FileConfigStore(ConfigStore):
 class FirestoreConfigStore(ConfigStore):
     def __init__(
         self,
-        project_id: Optional[str] = None,
-        collection: Optional[str] = None,
-        credentials_path: Optional[str] = None,
-        database: Optional[str] = None,
+        project_id: str | None = None,
+        collection: str | None = None,
+        credentials_path: str | None = None,
+        database: str | None = None,
     ):
         self.project_id = project_id
         self.collection_name = collection or "wbm_users"
         self.credentials_path = credentials_path
         self.database = database
-        self._client = None
-        self._collection = None
+        self._client: Any | None = None
+        self._collection: Any | None = None
+        self._google_api_error: type[Exception] | None = None
 
     def initialize(self) -> None:
-        if self.credentials_path:
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.credentials_path
-
-        _patch_protobuf_imports_for_py314()
-
-        global _FIRESTORE, _GOOGLE_API_ERROR
-        if _FIRESTORE is None or _GOOGLE_API_ERROR is None:
-            from google.api_core.exceptions import GoogleAPIError
-            from google.cloud import firestore
-
-            _FIRESTORE = firestore
-            _GOOGLE_API_ERROR = GoogleAPIError
-
-        if self.database:
-            self._client = _FIRESTORE.Client(
-                project=self.project_id, database=self.database
-            )
-        else:
-            self._client = _FIRESTORE.Client(project=self.project_id)
-
+        self._client, self._google_api_error = firestore_support.create_firestore_client(
+            project_id=self.project_id,
+            database=self.database,
+            credentials_path=self.credentials_path,
+        )
         self._collection = self._client.collection(self.collection_name)
         LOG.info(
             color_me.cyan(
@@ -94,14 +79,24 @@ class FirestoreConfigStore(ConfigStore):
             )
         )
 
-    def load_config(self, config_key: Optional[str] = None):
+    def _require_collection(self):
         if not self._collection:
             raise RuntimeError("Firestore config store not initialized.")
+        return self._collection
+
+    def _require_google_api_error(self) -> type[Exception]:
+        if self._google_api_error is None:
+            raise RuntimeError("Firestore config store not initialized.")
+        return self._google_api_error
+
+    def load_config(self, config_key: str | None = None):
+        collection = self._require_collection()
+        google_api_error = self._require_google_api_error()
         if not config_key:
             raise ValueError("config_key is required for Firestore config store.")
         try:
-            doc = self._collection.document(config_key).get()
-        except _GOOGLE_API_ERROR as exc:
+            doc = collection.document(config_key).get()
+        except google_api_error as exc:
             LOG.error(color_me.red(f"Firestore read failed: {exc}"))
             raise
         if not doc.exists:
@@ -114,11 +109,11 @@ class FirestoreConfigStore(ConfigStore):
         return data
 
     def list_configs(self):
-        if not self._collection:
-            raise RuntimeError("Firestore config store not initialized.")
+        collection = self._require_collection()
+        google_api_error = self._require_google_api_error()
         try:
-            docs = list(self._collection.stream())
-        except _GOOGLE_API_ERROR as exc:
+            docs = list(collection.stream())
+        except google_api_error as exc:
             LOG.error(color_me.red(f"Firestore read failed: {exc}"))
             raise
         configs = []
@@ -130,20 +125,20 @@ class FirestoreConfigStore(ConfigStore):
         return configs
 
     def save_config(self, config_key: str, config: dict) -> None:
-        if not self._collection:
-            raise RuntimeError("Firestore config store not initialized.")
+        collection = self._require_collection()
+        google_api_error = self._require_google_api_error()
         if not config_key:
             raise ValueError("config_key is required for Firestore config store.")
         payload = dict(config)
         payload["user_id"] = config_key
         try:
-            self._collection.document(config_key).set(payload, merge=True)
+            collection.document(config_key).set(payload, merge=True)
             LOG.info(
                 color_me.green(
                     f"Saved WBM config in Firestore (key={config_key}) ✅"
                 )
             )
-        except _GOOGLE_API_ERROR as exc:
+        except google_api_error as exc:
             LOG.error(color_me.red(f"Firestore write failed: {exc}"))
             raise
 
@@ -152,10 +147,10 @@ def build_config_store(
     backend: str,
     path: str,
     allow_prompt: bool = True,
-    project_id: Optional[str] = None,
-    collection: Optional[str] = None,
-    credentials_path: Optional[str] = None,
-    database: Optional[str] = None,
+    project_id: str | None = None,
+    collection: str | None = None,
+    credentials_path: str | None = None,
+    database: str | None = None,
 ) -> ConfigStore:
     backend = (backend or "file").strip().lower()
     if backend == "firestore":

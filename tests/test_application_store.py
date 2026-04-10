@@ -1,17 +1,18 @@
 import os
-import sys
 import tempfile
 import unittest
 import uuid
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.join(ROOT, "wbmbot_v3"))
-
-from utility.application_store import (  # noqa: E402
+from wbmbot_v3.utility.application_store import (
     CompositeApplicationStore,
     FileApplicationStore,
     FirestoreApplicationStore,
     build_application_store,
+)
+from wbmbot_v3.utility.config_store import (
+    FileConfigStore,
+    FirestoreConfigStore,
+    build_config_store,
 )
 
 
@@ -45,6 +46,18 @@ class FileApplicationStoreTests(unittest.TestCase):
     def test_build_store_defaults_to_file(self):
         store = build_application_store("file", "/tmp/does-not-matter.json")
         self.assertIsInstance(store, FileApplicationStore)
+
+    def test_build_store_supports_firestore_backend(self):
+        store = build_application_store("firestore", "/tmp/does-not-matter.json")
+        self.assertIsInstance(store, FirestoreApplicationStore)
+
+    def test_build_config_store_defaults_to_file(self):
+        store = build_config_store("file", "/tmp/wbm_config.json")
+        self.assertIsInstance(store, FileConfigStore)
+
+    def test_build_config_store_supports_firestore_backend(self):
+        store = build_config_store("firestore", "/tmp/wbm_config.json")
+        self.assertIsInstance(store, FirestoreConfigStore)
 
 
 class CompositeApplicationStoreTests(unittest.TestCase):

@@ -1,18 +1,33 @@
-"""
-    Functions to parse string and transorm as colored output of:
-    GREEN - SUCCESS
-    RED - ERROR
-    BLUE - MESSAGE
-    YELLOW - WARNING
-    MAGENTA - DEBUG
-"""
-
 import logging
 
 from colorama import Fore, Style
 
 BASIC_FORMAT = "[%(asctime)s] [%(filename)s:%(lineno)s] %(message)s"
-logging.basicConfig(format=BASIC_FORMAT, level=logging.INFO, datefmt="%d.%m.%Y - %H:%M")
+DATE_FORMAT = "%d.%m.%Y - %H:%M"
+
+
+def configure_logging(
+    level: int = logging.INFO,
+    force: bool = False,
+) -> logging.Logger:
+    """
+    Configure root logging explicitly at runtime.
+    """
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    if force or not root_logger.handlers:
+        logging.basicConfig(
+            format=BASIC_FORMAT,
+            level=level,
+            datefmt=DATE_FORMAT,
+            force=force,
+        )
+    return root_logger
+
+
+def get_logger(name: str) -> logging.Logger:
+    return logging.getLogger(name)
 
 
 class ColoredLogger:
@@ -23,9 +38,7 @@ class ColoredLogger:
         """
         Creates a logger
         """
-        LOG = logging.getLogger(self.app_name)
-        LOG.setLevel(logging.INFO)
-        return LOG
+        return get_logger(self.app_name)
 
     def green(self, message: str):
         """

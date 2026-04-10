@@ -1,15 +1,14 @@
 import json
 import os
 
-from helpers import constants
-from logger import wbm_logger
+from wbmbot_v3.logger import wbm_logger
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
 color_me = wbm_logger.ColoredLogger(__appname__)
 LOG = color_me.create_logger()
 
 
-def setup_wbm_config():
+def setup_wbm_config(config_path: str) -> None:
     """
     Takes user-input to assemble their user profile
     """
@@ -108,5 +107,8 @@ def setup_wbm_config():
     LOG.info(color_me.green("Done! Writing config file... ✅"))
 
     # Write the collected data to a JSON file
-    with open(constants.wbm_config_name, "w") as outfile:
+    config_dir = os.path.dirname(config_path)
+    if config_dir:
+        os.makedirs(config_dir, exist_ok=True)
+    with open(config_path, "w", encoding="utf-8") as outfile:
         json.dump(data, outfile, indent=4)

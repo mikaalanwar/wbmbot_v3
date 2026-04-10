@@ -1,8 +1,9 @@
 import os
 
 import yagmail
-from helpers import constants
-from logger import wbm_logger
+
+from wbmbot_v3.helpers import constants
+from wbmbot_v3.logger import wbm_logger
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
 color_me = wbm_logger.ColoredLogger(__appname__)
@@ -21,10 +22,11 @@ def send_email_notification(
         attachment (str, optional): Path to the attachment file. Defaults to None.
     """
 
-    if not constants.email_password:
+    email_password = constants.get_email_password()
+    if not email_password:
         LOG.warning(
             color_me.yellow(
-                f"E-mail password not found in the ENV variables. I will not be able to send you e-mails 🚧"
+                "E-mail password not found in the ENV variables. I will not be able to send you e-mails 🚧"
             )
         )
         return
@@ -32,7 +34,7 @@ def send_email_notification(
     if "@outlook.com" not in send_from:
         LOG.warning(
             color_me.yellow(
-                f"Notifications e-mail doesn't seem be of '@outlook.com' domain, skipping notifications 🚧"
+                "Notifications e-mail doesn't seem be of '@outlook.com' domain, skipping notifications 🚧"
             )
         )
         return
@@ -41,7 +43,7 @@ def send_email_notification(
         # Initialize yagmail SMTP connection
         yag = yagmail.SMTP(
             send_from,
-            constants.email_password,
+            email_password,
             smtp_starttls=True,
             smtp_ssl=False,
             smtp_skip_login=False,
@@ -58,5 +60,5 @@ def send_email_notification(
         LOG.info(
             color_me.green(f"Email notification sent successfully to '{send_to}' ✅")
         )
-    except Exception as e:
+    except Exception:
         LOG.error(color_me.red(f"Failed to send email notification to '{send_to}' ❌"))

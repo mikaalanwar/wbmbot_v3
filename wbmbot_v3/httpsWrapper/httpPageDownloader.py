@@ -4,7 +4,8 @@ import warnings
 
 import requests
 from pywebcopy import save_webpage
-from utility import io_operations
+
+from wbmbot_v3.utility import io_operations
 
 # Suppress PyWebCopy's logging
 logging.getLogger("pywebcopy").setLevel(logging.CRITICAL)
@@ -55,7 +56,7 @@ def save_rendered_page(html_source: str, file_path: str) -> None:
         html_file.write(html_source)
 
 
-def download_pdf_file(url: str, local_dir: str) -> None:
+def download_pdf_file(url: str, local_dir: str) -> str | None:
     """
     Download a PDF file from the given URL to the local directory.
 
@@ -80,5 +81,5 @@ def download_pdf_file(url: str, local_dir: str) -> None:
                     pdf_file.write(chunk)
 
         return file_path
-    except requests.exceptions.RequestException as e:
-        None
+    except requests.exceptions.RequestException:
+        return None

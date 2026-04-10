@@ -1,18 +1,26 @@
 import json
 import logging
 import os
-import re
+from typing import Any
 
-from helpers import constants
-from logger import wbm_logger
-from utility import interaction, misc_operations
+from wbmbot_v3.helpers import constants
+from wbmbot_v3.logger import wbm_logger
+from wbmbot_v3.utility import interaction, misc_operations
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
 color_me = wbm_logger.ColoredLogger(__appname__)
 LOG = color_me.create_logger()
 
 
-# Function to check for the existence of the config file and load it
+def _load_json_file(file_name: str) -> dict[str, Any] | None:
+    with open(file_name, "r", encoding="utf-8") as config_file:
+        try:
+            return json.load(config_file)
+        except (json.JSONDecodeError, TypeError):
+            LOG.error(color_me.red("Failed to parse WBM config file ❌"))
+            return None
+
+
 def load_wbm_config(file_name: str):
     """
     Loads the wbm config, or create it if not found
@@ -23,25 +31,12 @@ def load_wbm_config(file_name: str):
 
     if os.path.isfile(file_name):
         LOG.info(color_me.cyan("Loading WBM config ⚙️"))
-        with open(file_name, "r") as config_file:
-            try:
-                user_config = json.load(config_file)
-                return user_config
-            except json.JSONDecodeError as e:
-                LOG.error(color_me.red(f"Failed to parse WBM config file ❌"))
-            except TypeError as e:
-                LOG.error(color_me.red(f"Failed to parse WBM config file ❌"))
-    else:
-        LOG.warning(color_me.yellow("No WBM config file found, starting setup ⚠️"))
-        # Setup WBM config from the User
-        interaction.setup_wbm_config()
-        LOG.info(color_me.cyan("Loading WBM config ⚙️"))
-        with open(file_name, "r") as config_file:
-            try:
-                user_config = json.load(config_file)
-                return user_config
-            except json.JSONDecodeError as e:
-                LOG.error(color_me.red(f"Failed to parse WBM config file ❌"))
+        return _load_json_file(file_name)
+
+    LOG.warning(color_me.yellow("No WBM config file found, starting setup ⚠️"))
+    interaction.setup_wbm_config(file_name)
+    LOG.info(color_me.cyan("Loading WBM config ⚙️"))
+    return _load_json_file(file_name)
 
 
 def load_wbm_config_no_prompt(file_name: str):
@@ -51,15 +46,7 @@ def load_wbm_config_no_prompt(file_name: str):
 
     if os.path.isfile(file_name):
         LOG.info(color_me.cyan("Loading WBM config ⚙️"))
-        with open(file_name, "r") as config_file:
-            try:
-                user_config = json.load(config_file)
-                return user_config
-            except json.JSONDecodeError:
-                LOG.error(color_me.red("Failed to parse WBM config file ❌"))
-            except TypeError:
-                LOG.error(color_me.red("Failed to parse WBM config file ❌"))
-        return None
+        return _load_json_file(file_name)
 
     LOG.error(color_me.red("No WBM config file found ❌"))
     return None
@@ -73,10 +60,12 @@ def initialize_application_logger(log_file: str):
         file_path (str): The path to the file.
     """
 
-    # Check if the log file exists
+    directory = os.path.dirname(log_file)
+    if directory:
+        create_directory_if_not_exists(directory)
+
     if not os.path.isfile(log_file):
-        # If the log file does not exist, create it by opening in append mode and immediately closing it
-        with open(log_file, "a") as file:
+        with open(log_file, "a", encoding="utf-8"):
             pass
 
 
@@ -88,6 +77,8 @@ def initialize_debug_logging(log_file: str) -> str | None:
 
     if not log_file:
         return None
+
+    wbm_logger.configure_logging()
 
     directory = os.path.dirname(log_file)
     if directory:
@@ -102,7 +93,8 @@ def initialize_debug_logging(log_file: str) -> str | None:
 
     handler = logging.FileHandler(log_file, encoding="utf-8")
     formatter = logging.Formatter(
-        wbm_logger.BASIC_FORMAT, datefmt="%d.%m.%Y - %H:%M"
+        wbm_logger.BASIC_FORMAT,
+        datefmt=wbm_logger.DATE_FORMAT,
     )
     handler.setFormatter(formatter)
     root_logger.addHandler(handler)
@@ -136,7 +128,7 @@ def write_log_file(log_file: str, email: str, flat_obj):
         # Check if the entry with the same hash exists
         if flat_obj.hash not in existing_log[email]:
             existing_log[email][flat_obj.hash] = {
-                "date": constants.today.isoformat(),
+                "date": constants.current_date().isoformat(),
                 "title": flat_obj.title,
                 "street": flat_obj.street,
                 "zip_code": flat_obj.zip_code,
@@ -149,9 +141,7 @@ def write_log_file(log_file: str, email: str, flat_obj):
         # If email doesn't exist, add a new entry
         existing_log[email] = {
             flat_obj.hash: {
-                "date": constants.today.isoformat(),
-                "title": flat_obj.title,
-                "date": constants.today.isoformat(),
+                "date": constants.current_date().isoformat(),
                 "title": flat_obj.title,
                 "street": flat_obj.street,
                 "zip_code": flat_obj.zip_code,
@@ -163,7 +153,7 @@ def write_log_file(log_file: str, email: str, flat_obj):
         }
 
     # Write the updated log back to the file
-    with open(log_file, "w") as json_file:
+    with open(log_file, "w", encoding="utf-8") as json_file:
         json.dump(existing_log, json_file, indent=4, ensure_ascii=False)
 
 
@@ -179,7 +169,7 @@ def create_directory_if_not_exists(directory_path: str) -> None:
     """
     try:
         os.makedirs(directory_path, exist_ok=True)
-    except OSError as e:
+    except OSError:
         LOG.error(color_me.red(f"Failed to create directory ({directory_path}) ❌"))
 
 

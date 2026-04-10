@@ -1,68 +1,26 @@
-import datetime as dt
 import hashlib
-import importlib
-import importlib.abc
-import importlib.machinery
 import os
-import sys
-from typing import Optional
+from abc import ABC, abstractmethod
+from typing import Any
 
-from helpers import constants
-from logger import wbm_logger
-from utility import io_operations, misc_operations
+from wbmbot_v3.helpers import constants
+from wbmbot_v3.logger import wbm_logger
+from wbmbot_v3.utility import firestore_support, io_operations, misc_operations
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
 color_me = wbm_logger.ColoredLogger(__appname__)
 LOG = color_me.create_logger()
 
-_FIRESTORE = None
-_GOOGLE_API_ERROR = None
 
-
-def _patch_protobuf_imports_for_py314() -> None:
-    """
-    Work around protobuf C-extension import failures on Python 3.14 by forcing
-    ImportError for the extension modules so protobuf falls back to pure Python.
-    """
-
-    if sys.version_info < (3, 14):
-        return
-
-    os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
-
-    blocked_prefixes = ("google._upb", "google.protobuf.pyext")
-
-    if not any(
-        getattr(finder, "_wbm_blocker", False) for finder in sys.meta_path
-    ):
-
-        class _BlockUpbLoader(importlib.abc.Loader):
-            def create_module(self, spec):
-                return None
-
-            def exec_module(self, module):
-                raise ImportError(module.__name__)
-
-        class _BlockUpbFinder(importlib.abc.MetaPathFinder):
-            _wbm_blocker = True
-
-            def find_spec(self, fullname, path, target=None):
-                if fullname.startswith(blocked_prefixes):
-                    return importlib.machinery.ModuleSpec(
-                        fullname, _BlockUpbLoader()
-                    )
-                return None
-
-        sys.meta_path.insert(0, _BlockUpbFinder())
-
-
-class ApplicationStore:
+class ApplicationStore(ABC):
     def initialize(self) -> None:
         return None
 
+    @abstractmethod
     def has_applied(self, email: str, flat_obj) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
     def record_application(self, email: str, flat_obj) -> None:
         raise NotImplementedError
 
@@ -125,39 +83,25 @@ class FileApplicationStore(ApplicationStore):
 class FirestoreApplicationStore(ApplicationStore):
     def __init__(
         self,
-        project_id: Optional[str] = None,
-        collection: Optional[str] = None,
-        credentials_path: Optional[str] = None,
-        database: Optional[str] = None,
+        project_id: str | None = None,
+        collection: str | None = None,
+        credentials_path: str | None = None,
+        database: str | None = None,
     ):
         self.project_id = project_id
         self.collection_name = collection or "wbm_applications"
         self.credentials_path = credentials_path
         self.database = database
-        self._client = None
-        self._collection = None
+        self._client: Any | None = None
+        self._collection: Any | None = None
+        self._google_api_error: type[Exception] | None = None
 
     def initialize(self) -> None:
-        if self.credentials_path:
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.credentials_path
-
-        _patch_protobuf_imports_for_py314()
-
-        global _FIRESTORE, _GOOGLE_API_ERROR
-        if _FIRESTORE is None or _GOOGLE_API_ERROR is None:
-            from google.api_core.exceptions import GoogleAPIError
-            from google.cloud import firestore
-
-            _FIRESTORE = firestore
-            _GOOGLE_API_ERROR = GoogleAPIError
-
-        if self.database:
-            self._client = _FIRESTORE.Client(
-                project=self.project_id, database=self.database
-            )
-        else:
-            self._client = _FIRESTORE.Client(project=self.project_id)
-
+        self._client, self._google_api_error = firestore_support.create_firestore_client(
+            project_id=self.project_id,
+            database=self.database,
+            credentials_path=self.credentials_path,
+        )
         self._collection = self._client.collection(self.collection_name)
 
         LOG.info(
@@ -180,13 +124,14 @@ class FirestoreApplicationStore(ApplicationStore):
 
     @staticmethod
     def _build_entry(email: str, flat_obj) -> dict:
+        applied_date = constants.current_date().isoformat()
         street = flat_obj.street
         zip_code = flat_obj.zip_code
         return {
             "email": (email or "").strip(),
             "flat_hash": flat_obj.hash,
-            "date": constants.today.isoformat(),
-            "applied_on": constants.today.isoformat(),
+            "date": applied_date,
+            "applied_on": applied_date,
             "title": flat_obj.title,
             "street": street,
             "zip_code": zip_code,
@@ -195,33 +140,43 @@ class FirestoreApplicationStore(ApplicationStore):
             "size": misc_operations.convert_size(flat_obj.size),
             "rooms": misc_operations.get_zimmer_count(flat_obj.rooms),
             "wbs?": flat_obj.wbs,
-            "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "created_at": constants.utc_now().isoformat(),
         }
 
-    def has_applied(self, email: str, flat_obj) -> bool:
+    def _require_collection(self):
         if not self._collection:
             raise RuntimeError("Firestore store not initialized.")
+        return self._collection
+
+    def _require_google_api_error(self) -> type[Exception]:
+        if self._google_api_error is None:
+            raise RuntimeError("Firestore store not initialized.")
+        return self._google_api_error
+
+    def has_applied(self, email: str, flat_obj) -> bool:
+        collection = self._require_collection()
+        google_api_error = self._require_google_api_error()
         doc_id = self._doc_id(email, flat_obj.hash)
         try:
-            return bool(self._collection.document(doc_id).get().exists)
-        except _GOOGLE_API_ERROR as exc:
+            return bool(collection.document(doc_id).get().exists)
+        except google_api_error as exc:
             LOG.error(color_me.red(f"Firestore read failed: {exc}"))
             raise
 
     def record_application(self, email: str, flat_obj) -> None:
-        if not self._collection:
-            raise RuntimeError("Firestore store not initialized.")
+        collection = self._require_collection()
+        google_api_error = self._require_google_api_error()
         doc_id = self._doc_id(email, flat_obj.hash)
         payload = self._build_entry(email, flat_obj)
         try:
-            self._collection.document(doc_id).set(payload, merge=True)
+            collection.document(doc_id).set(payload, merge=True)
             LOG.info(
                 color_me.green(
                     "Recorded application in Firestore "
                     f"(doc={doc_id}, email={payload.get('email')}) ✅"
                 )
             )
-        except _GOOGLE_API_ERROR as exc:
+        except google_api_error as exc:
             LOG.error(color_me.red(f"Firestore write failed: {exc}"))
             raise
 
@@ -229,10 +184,10 @@ class FirestoreApplicationStore(ApplicationStore):
 def build_application_store(
     backend: str,
     log_file_path: str,
-    project_id: Optional[str] = None,
-    collection: Optional[str] = None,
-    credentials_path: Optional[str] = None,
-    database: Optional[str] = None,
+    project_id: str | None = None,
+    collection: str | None = None,
+    credentials_path: str | None = None,
+    database: str | None = None,
 ) -> ApplicationStore:
     backend = (backend or "file").strip().lower()
     if backend == "firestore":

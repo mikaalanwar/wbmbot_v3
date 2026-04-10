@@ -1,14 +1,10 @@
 import logging
 import os
-import sys
 import tempfile
 import unittest
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.join(ROOT, "wbmbot_v3"))
-
-from helpers import webDriverOperations  # noqa: E402
-from utility import io_operations  # noqa: E402
+from wbmbot_v3.helpers import debug_artifacts
+from wbmbot_v3.utility import io_operations
 
 
 class DebugModeTests(unittest.TestCase):
@@ -39,7 +35,7 @@ class DebugModeTests(unittest.TestCase):
 
     def test_extract_pdf_link_from_html(self):
         html = "<a class='download' href='/files/expose.pdf'>Expos\u00e9</a>"
-        link = webDriverOperations._extract_pdf_link_from_html(
+        link = debug_artifacts._extract_pdf_link_from_html(
             html, "https://example.com/page"
         )
         self.assertEqual(link, "https://example.com/files/expose.pdf")

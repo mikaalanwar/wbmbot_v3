@@ -68,7 +68,7 @@ To set up your environment and install the required dependencies, run the follow
 
 ```bash
 # or use the Makefile shortcut: `make dev`
-pip install -r wbmbot_v3/requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 ## Quick Start
@@ -76,7 +76,7 @@ pip install -r wbmbot_v3/requirements.txt
 To launch the bot, navigate to the project directory and execute:
 
 ```bash
-python3 wbmbot_v3/main.py
+python3 -m wbmbot_v3
 ```
 
 Or with the Makefile helper:
@@ -155,7 +155,7 @@ Remember to do a clean-up if you don't want to view them!
 ## Command-Line Interface
 
 ```bash
-usage: main.py [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY]
+usage: python -m wbmbot_v3 [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY]
                [--run-once] [--exit-on-last-page|--no-exit-on-last-page]
                [--applications-store {file,firestore}]
                [--config-store {file,firestore}]
@@ -260,7 +260,7 @@ If you run the bot as a cron job (e.g., GitHub Actions) and need persistent stat
 you can store applications in Firestore instead of the local filesystem:
 
 ```bash
-python3 wbmbot_v3/main.py --applications-store firestore \
+python3 -m wbmbot_v3 --applications-store firestore \
   --firestore-project-id YOUR_PROJECT_ID \
   --firestore-collection wbm_applications \
   --firestore-credentials /path/to/service-account.json
@@ -278,10 +278,10 @@ Environment variables (optional, can be used instead of flags):
 
 ### Tests
 
-Unit tests run with:
+Checks run with:
 
 ```bash
-make test
+make check
 ```
 
 To enable Firestore integration tests (connectivity + write/read), set:

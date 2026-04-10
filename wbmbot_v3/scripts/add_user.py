@@ -5,10 +5,7 @@ import json
 import os
 import sys
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, ROOT)
-
-from utility.config_store import FirestoreConfigStore  # noqa: E402
+from wbmbot_v3.utility.config_store import FirestoreConfigStore
 
 
 def _resolve_user_id(config: dict, explicit: str | None) -> str | None:

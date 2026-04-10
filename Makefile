@@ -18,13 +18,15 @@ endif
 PIP := $(PYTHON) -m pip
 PROJECT_DIR := wbmbot_v3
 REQ_FILE := $(PROJECT_DIR)/requirements.txt
+DEV_REQ_FILE := requirements-dev.txt
 
-.PHONY: dev deps run test add_user
+.PHONY: dev deps run test lint typecheck check add_user
 
-dev:
+deps:
 	$(PIP) install -r $(REQ_FILE)
 
-deps: dev
+dev:
+	$(PIP) install -r $(DEV_REQ_FILE)
 
 ENV_LOAD := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 DEBUG_FLAG :=
@@ -46,13 +48,21 @@ endif
 endif
 
 run: deps
-	@$(ENV_LOAD) $(PYTHON) $(PROJECT_DIR)/main.py $(RUN_ARGS)
+	@$(ENV_LOAD) $(PYTHON) -m $(PROJECT_DIR) $(RUN_ARGS)
 
-test: deps
-	@$(ENV_LOAD) $(PYTHON) -m unittest discover -s tests -p "test_*.py"
+test: dev
+	@$(ENV_LOAD) $(PYTHON) -m pytest -q
+
+lint: dev
+	@$(ENV_LOAD) $(PYTHON) -m ruff check .
+
+typecheck: dev
+	@$(ENV_LOAD) $(PYTHON) -m mypy
+
+check: lint typecheck test
 
 add_user: deps
-	@$(ENV_LOAD) PYTHONPATH=$(PROJECT_DIR) $(PYTHON) $(PROJECT_DIR)/scripts/add_user.py $(filter-out $@,$(MAKECMDGOALS))
+	@$(ENV_LOAD) $(PYTHON) -m $(PROJECT_DIR).scripts.add_user $(filter-out $@,$(MAKECMDGOALS))
 
 %:
 	@:

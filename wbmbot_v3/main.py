@@ -1,39 +1,41 @@
 import argparse
 import os
 import time
+from typing import Sequence
 
-from chromeDriver import chrome_driver_configurator as cdc
-from handlers import user
-from helpers import constants, webDriverOperations
-from logger import wbm_logger
-from utility import io_operations, misc_operations
-from utility.config_store import build_config_store
-from utility.application_store import (
+from wbmbot_v3.chromeDriver import chrome_driver_configurator as cdc
+from wbmbot_v3.handlers import user
+from wbmbot_v3.helpers import constants, webDriverOperations
+from wbmbot_v3.logger import wbm_logger
+from wbmbot_v3.utility import io_operations, misc_operations
+from wbmbot_v3.utility.application_store import (
     CompositeApplicationStore,
     FirestoreApplicationStore,
     build_application_store,
 )
+from wbmbot_v3.utility.config_store import build_config_store
 
 __appname__ = os.path.splitext(os.path.basename(__file__))[0]
-os.environ["WDM_LOG"] = "0"
 
 
-def parse_args():
+def _env_choice(name: str, allowed: set[str], fallback: str) -> str:
+    value = os.environ.get(name)
+    if value and value.strip().lower() in allowed:
+        return value.strip().lower()
+    return fallback
+
+
+def _env_bool(name: str, fallback: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return fallback
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def build_parser() -> argparse.ArgumentParser:
     """
     Parse the command line arguments
     """
-
-    def _env_choice(name: str, allowed: set, fallback: str) -> str:
-        value = os.environ.get(name)
-        if value and value.strip().lower() in allowed:
-            return value.strip().lower()
-        return fallback
-
-    def _env_bool(name: str, fallback: bool = False) -> bool:
-        value = os.environ.get(name)
-        if value is None:
-            return fallback
-        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
     default_app_store = _env_choice(
         "APPLICATIONS_STORE", {"file", "firestore"}, "file"
@@ -42,19 +44,8 @@ def parse_args():
     default_debug = _env_bool("WBM_DEBUG", False)
 
     parser = argparse.ArgumentParser(
+        prog="python -m wbmbot_v3",
         description="A Selenium-based bot that scrapes 'WBM Angebote' page and auto applies on appartments based on user exclusion filters",
-        usage=(
-            "%(prog)s [-i INTERVAL] [-H|--no-headless] [-t] [-d DELAY] "
-            "[--run-once] [--exit-on-last-page|--no-exit-on-last-page] "
-            "[--applications-store {file,firestore}] "
-            "[--config-store {file,firestore}] "
-            "[--config-key KEY] "
-            "[--firestore-project-id PROJECT] "
-            "[--firestore-collection COLLECTION] "
-            "[--firestore-config-collection COLLECTION] "
-            "[--firestore-credentials PATH] "
-            "[--firestore-database DATABASE]"
-        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -178,16 +169,24 @@ def parse_args():
         help="Enable debug logging and dump HTML/screenshot artifacts to disk.",
     )
 
-    return parser.parse_args()
+    return parser
 
 
-def main():
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    return build_parser().parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
     """
     Initialize & starts the bot
     If the bot crashes, it will attempt to restart itself
     """
 
-    args = parse_args()
+    os.environ.setdefault("WDM_LOG", "0")
+    wbm_logger.configure_logging()
+
+    args = parse_args(argv)
+    runtime_paths = constants.build_runtime_paths()
 
     color_me = wbm_logger.ColoredLogger(__appname__)
     LOG = color_me.create_logger()
@@ -197,7 +196,7 @@ def main():
     )
 
     # Show Intro Banner
-    LOG.info(color_me.cyan(f"{constants.intro_banner}"))
+    LOG.info(color_me.cyan(constants.intro_banner))
 
     # Create ChromeDriver
     LOG.info(
@@ -231,8 +230,8 @@ def main():
 
     debug_dir = None
     if args.debug:
-        debug_dir = constants.debug_dump_path
-        io_operations.initialize_debug_logging(constants.debug_log_path)
+        debug_dir = runtime_paths.debug_dump_path
+        io_operations.initialize_debug_logging(runtime_paths.debug_log_path)
         LOG.info(
             color_me.cyan(
                 f"Debug mode enabled; dumps/logs will be stored in {debug_dir} 🧾"
@@ -241,7 +240,11 @@ def main():
 
     config_store = build_config_store(
         args.config_store,
-        constants.wbm_config_name if not args.test else constants.wbm_test_config_name,
+        (
+            runtime_paths.wbm_config_name
+            if not args.test
+            else runtime_paths.wbm_test_config_name
+        ),
         allow_prompt=not args.run_once,
         project_id=args.firestore_project_id or os.environ.get("FIRESTORE_PROJECT_ID"),
         collection=args.firestore_config_collection
@@ -266,7 +269,7 @@ def main():
     user_profiles = [user.User(cfg) for cfg in configs]
     application_store = build_application_store(
         args.applications_store,
-        constants.log_file_path,
+        runtime_paths.log_file_path,
         project_id=args.firestore_project_id or os.environ.get("FIRESTORE_PROJECT_ID"),
         collection=args.firestore_collection or os.environ.get("FIRESTORE_COLLECTION"),
         credentials_path=args.firestore_credentials
@@ -288,10 +291,10 @@ def main():
         )
         application_store = CompositeApplicationStore(
             [application_store, audit_store], label="primary+github-actions"
-        )
+    )
     application_store.initialize()
     # Get URL
-    start_url = constants.wbm_url if not args.test else constants.test_wbm_url
+    start_url = constants.wbm_url if not args.test else runtime_paths.test_wbm_url
 
     ###### Start the magic ######
     current_page = 1
@@ -317,12 +320,13 @@ def main():
                 args.exit_on_last_page,
                 application_store,
                 debug_dir,
+                runtime_paths=runtime_paths,
             )
             if args.run_once or args.exit_on_last_page:
                 break
         except Exception as e:
             LOG.error(
-                color_me.red(f"Bot has crashed... Attempting to restart it now! ❤️‍🩹")
+                color_me.red("Bot has crashed... Attempting to restart it now! ❤️‍🩹")
             )
             LOG.error(color_me.red(f"Crash reason: {e}"))
             if args.run_once:
@@ -334,8 +338,8 @@ def main():
                 web_driver.quit()
             except Exception:
                 pass
+    return 0
 
 
-# * Script Starts Here
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

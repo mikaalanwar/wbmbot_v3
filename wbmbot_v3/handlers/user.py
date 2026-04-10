@@ -1,6 +1,3 @@
-import json
-
-
 class User:
     """
     A class to represent a user profile.
