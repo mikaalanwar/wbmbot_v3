@@ -1,0 +1,4 @@
+-r wbmbot_v3/requirements.txt
+pytest==8.3.5
+ruff==0.11.7
+mypy==1.15.0

@@ -10,4 +10,5 @@ offline_viewings/apartments_expose_pdfs/**
 logging/debug/**
 # Exclude
 !requirements.txt
+!requirements-dev.txt
 !test-data/**
